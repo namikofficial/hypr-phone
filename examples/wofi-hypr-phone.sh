@@ -6,10 +6,14 @@ if ! command -v hypr-phone >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! command -v rofi >/dev/null 2>&1; then
-  notify-send "hypr-phone" "rofi is not installed"
+if ! command -v wofi >/dev/null 2>&1; then
+  notify-send "hypr-phone" "wofi is not installed"
   exit 1
 fi
+
+select_wofi() {
+  wofi --dmenu --prompt "$1"
+}
 
 menu_entries=$(
   cat <<'EOF'
@@ -25,7 +29,7 @@ Push file to phone
 EOF
 )
 
-choice=$(printf '%s\n' "$menu_entries" | rofi -dmenu -i -p "hypr-phone")
+choice=$(printf '%s\n' "$menu_entries" | select_wofi "hypr-phone")
 [[ -z "${choice:-}" ]] && exit 0
 
 case "$choice" in
@@ -36,27 +40,27 @@ case "$choice" in
     hypr-phone mirror --profile low_latency
     ;;
   "List devices")
-    hypr-phone devices | rofi -dmenu -i -p "Connected devices (Esc to close)" >/dev/null || true
+    hypr-phone devices | select_wofi "Connected devices (Esc to close)" >/dev/null || true
     ;;
   "Pair wireless ADB")
-    endpoint=$(rofi -dmenu -p "Pair endpoint (ip:port)")
+    endpoint=$(printf '' | select_wofi "Pair endpoint (ip:port)")
     [[ -z "${endpoint:-}" ]] && exit 0
-    code=$(rofi -dmenu -p "Pairing code")
+    code=$(printf '' | select_wofi "Pairing code")
     [[ -z "${code:-}" ]] && exit 0
     hypr-phone pair "$endpoint" "$code"
     ;;
   "Connect wireless ADB")
-    endpoint=$(rofi -dmenu -p "Connect endpoint (ip:port)")
+    endpoint=$(printf '' | select_wofi "Connect endpoint (ip:port)")
     [[ -z "${endpoint:-}" ]] && exit 0
     hypr-phone connect "$endpoint"
     ;;
   "Disconnect device")
-    serial=$(rofi -dmenu -p "Serial to disconnect")
+    serial=$(printf '' | select_wofi "Serial to disconnect")
     [[ -z "${serial:-}" ]] && exit 0
     hypr-phone disconnect "$serial"
     ;;
   "Open ADB shell")
-    serial=$(rofi -dmenu -p "Serial (leave empty for default)")
+    serial=$(printf '' | select_wofi "Serial (leave empty for default)")
     if [[ -n "${serial:-}" ]]; then
       exec foot -e adb -s "$serial" shell
     else
@@ -70,9 +74,9 @@ case "$choice" in
     notify-send "hypr-phone" "Screenshot saved and copied: $out"
     ;;
   "Push file to phone")
-    source_file=$(rofi -dmenu -p "Local file path")
+    source_file=$(printf '' | select_wofi "Local file path")
     [[ -z "${source_file:-}" ]] && exit 0
-    remote_path=$(rofi -dmenu -p "Remote path (default /sdcard/Download/)")
+    remote_path=$(printf '' | select_wofi "Remote path (default /sdcard/Download/)")
     remote_path=${remote_path:-/sdcard/Download/}
     adb push "$source_file" "$remote_path"
     ;;
