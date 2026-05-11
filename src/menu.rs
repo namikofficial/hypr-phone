@@ -6,12 +6,7 @@ use std::{
 
 use anyhow::{bail, Context};
 
-use crate::{
-    adb,
-    errors::Result,
-    module_output::ModuleOutput,
-    scrcpy,
-};
+use crate::{adb, errors::Result, module_output::ModuleOutput, scrcpy};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MenuBackend {
@@ -109,7 +104,10 @@ pub fn launch_and_execute_v01_menu() -> Result<Option<String>> {
     execute_action_command(&command).map(Some)
 }
 
-pub fn build_action_command(action: MenuAction, backend: MenuBackend) -> Result<Option<ActionCommand>> {
+pub fn build_action_command(
+    action: MenuAction,
+    backend: MenuBackend,
+) -> Result<Option<ActionCommand>> {
     match action {
         MenuAction::MirrorDefaultDevice => Ok(Some(build_mirror_command(false)?)),
         MenuAction::MirrorLowLatency => Ok(Some(build_mirror_command(true)?)),
@@ -131,7 +129,8 @@ pub fn build_action_command(action: MenuAction, backend: MenuBackend) -> Result<
             }))
         }
         MenuAction::ConnectWirelessAdb => {
-            let Some(endpoint) = prompt_endpoint(backend, "Connect endpoint (ip:port)", 5555)? else {
+            let Some(endpoint) = prompt_endpoint(backend, "Connect endpoint (ip:port)", 5555)?
+            else {
                 return Ok(None);
             };
 
@@ -226,7 +225,11 @@ fn build_mirror_command(low_latency: bool) -> Result<ActionCommand> {
     })
 }
 
-fn prompt_endpoint(backend: MenuBackend, prompt: &str, default_port: u16) -> Result<Option<String>> {
+fn prompt_endpoint(
+    backend: MenuBackend,
+    prompt: &str,
+    default_port: u16,
+) -> Result<Option<String>> {
     let Some(endpoint) = prompt_text(backend, prompt)? else {
         return Ok(None);
     };

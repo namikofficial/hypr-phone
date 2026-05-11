@@ -190,12 +190,8 @@ fn init_config_file() -> Result<()> {
         .parent()
         .ok_or_else(|| anyhow!("Failed to determine parent directory for config path."))?;
 
-    fs::create_dir_all(parent).with_context(|| {
-        format!(
-            "Failed to create config directory at {}.",
-            parent.display()
-        )
-    })?;
+    fs::create_dir_all(parent)
+        .with_context(|| format!("Failed to create config directory at {}.", parent.display()))?;
 
     let config_template = config::Config::default().to_toml_string()?;
     fs::write(&path, config_template)

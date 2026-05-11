@@ -122,7 +122,10 @@ pub struct MirrorLaunch {
     pub hyprland_error: Option<String>,
 }
 
-pub fn resolve_mirror_config(config: &Config, request: MirrorRequest<'_>) -> Result<ResolvedMirrorConfig> {
+pub fn resolve_mirror_config(
+    config: &Config,
+    request: MirrorRequest<'_>,
+) -> Result<ResolvedMirrorConfig> {
     let profile_name = request
         .profile
         .unwrap_or(config.mirror.profile.as_str())
@@ -170,9 +173,10 @@ pub fn build_window_title(prefix: &str, profile_name: &str, serial: Option<&str>
 }
 
 pub fn build_scrcpy_args(resolved: &ResolvedMirrorConfig) -> Vec<String> {
-    resolved
-        .profile
-        .to_args(resolved.device_serial.as_deref(), resolved.window_title.as_str())
+    resolved.profile.to_args(
+        resolved.device_serial.as_deref(),
+        resolved.window_title.as_str(),
+    )
 }
 
 pub fn build_scrcpy_command(scrcpy_binary: &Path, args: &[String]) -> Command {

@@ -80,7 +80,9 @@ pub fn list_devices_with_timeout(timeout: Duration) -> Result<Vec<AdbDevice>> {
                 let output = child
                     .wait_with_output()
                     .context("failed to collect `adb devices -l` output")?;
-                return Ok(parse_devices_output(&String::from_utf8_lossy(&output.stdout)));
+                return Ok(parse_devices_output(&String::from_utf8_lossy(
+                    &output.stdout,
+                )));
             }
             None if Instant::now() >= deadline => {
                 let _ = child.kill();
