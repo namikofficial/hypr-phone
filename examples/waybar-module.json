@@ -1,0 +1,9 @@
+{
+  "custom/hypr-phone": {
+    "exec": "hypr-phone module",
+    "return-type": "json",
+    "interval": 5,
+    "on-click": "hypr-phone menu",
+    "tooltip": true
+  }
+}
