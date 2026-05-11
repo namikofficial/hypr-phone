@@ -27,7 +27,7 @@ impl ModuleOutput {
 impl ModuleStatus {
     fn connected(name: &str, serial: &str) -> Self {
         Self {
-            text: format!("\u{f111c} {name}"),
+            text: format!("\u{f011c} {name}"),
             tooltip: format!("Android device connected: {name}\\nADB: {serial}"),
             class: "connected".to_string(),
         }
@@ -35,7 +35,7 @@ impl ModuleStatus {
 
     fn disconnected() -> Self {
         Self {
-            text: "\u{f111b} No phone".to_string(),
+            text: "\u{f011b} No phone".to_string(),
             tooltip: "No Android device connected".to_string(),
             class: "disconnected".to_string(),
         }
