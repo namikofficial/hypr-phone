@@ -2,7 +2,7 @@
 
 hypr-phone v0.1 is a terminal-first Android companion for Hyprland.
 
-## Command list (v0.1 plan)
+## Command list (v0.1)
 
 ```bash
 hypr-phone doctor
@@ -10,9 +10,9 @@ hypr-phone devices
 hypr-phone pair <ip:port> <pairing-code>
 hypr-phone connect <ip:port>
 hypr-phone disconnect <serial>
-hypr-phone mirror [device] [--profile default]
-hypr-phone mirror [device] --profile low_latency
-hypr-phone mirror [device] --profile presentation
+hypr-phone mirror [serial] [--profile default]
+hypr-phone mirror [serial] --profile low_latency
+hypr-phone mirror [serial] --profile presentation
 hypr-phone module
 hypr-phone menu
 hypr-phone config path
@@ -44,7 +44,7 @@ hypr-phone connect 192.168.1.23:5555
 ### 4) Mirror using a profile
 
 ```bash
-hypr-phone mirror pixel --profile low_latency
+hypr-phone mirror 192.168.1.23:5555 --profile low_latency
 ```
 
 or:
@@ -52,6 +52,8 @@ or:
 ```bash
 hypr-phone mirror --profile default
 ```
+
+If no serial is passed, hypr-phone tries config defaults and then the first connected ADB device.
 
 ### 5) Show status module output
 
@@ -98,7 +100,7 @@ Minimum v0.1 menu actions:
 Profile fields map to scrcpy flags:
 
 - `max_size` -> `--max-size`
-- `bit_rate` -> `--video-bit-rate`
+- `video_bit_rate` -> `--video-bit-rate`
 - `max_fps` -> `--max-fps`
 - `audio` -> audio enabled/disabled behavior
 - `turn_screen_off` -> `--turn-screen-off`

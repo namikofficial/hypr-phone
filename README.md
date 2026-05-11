@@ -83,9 +83,9 @@ hypr-phone devices
 hypr-phone pair <ip:port> <pairing-code>
 hypr-phone connect <ip:port>
 hypr-phone disconnect <serial>
-hypr-phone mirror [device] --profile default
-hypr-phone mirror [device] --profile low_latency
-hypr-phone mirror [device] --profile presentation
+hypr-phone mirror [serial] --profile default
+hypr-phone mirror [serial] --profile low_latency
+hypr-phone mirror [serial] --profile presentation
 hypr-phone module
 hypr-phone menu
 hypr-phone config path

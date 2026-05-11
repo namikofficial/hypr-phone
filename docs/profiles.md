@@ -1,6 +1,6 @@
 # Profiles and Config
 
-hypr-phone uses a TOML config for devices, scrcpy profiles, and Hyprland integration.
+hypr-phone uses a TOML config for scrcpy profiles and Hyprland placement.
 
 Config path:
 
@@ -23,59 +23,55 @@ hypr-phone config init
 ## Full v0.1 example
 
 ```toml
-default_device = "pixel"
+device_serial = "192.168.1.23:5555"
+scrcpy_args = []
 
-[devices.pixel]
-name = "Pixel"
-serial = "192.168.1.23:5555"
+[mirror]
+device_serial = "192.168.1.23:5555"
+profile = "default"
+window_title_prefix = "hypr-phone"
 
-[profiles.default]
+[mirror.hyprland]
+enabled = true
+workspace = "special:phone"
+width = 420
+height = 900
+retry_timeout_ms = 3000
+retry_interval_ms = 200
+
+[mirror.profiles.default]
 max_size = 1080
-bit_rate = "8M"
+video_bit_rate = "8M"
 max_fps = 60
 audio = true
 turn_screen_off = false
 stay_awake = true
 
-[profiles.low_latency]
+[mirror.profiles.low_latency]
 max_size = 720
-bit_rate = "4M"
+video_bit_rate = "4M"
 max_fps = 60
 audio = false
 turn_screen_off = true
 stay_awake = true
 
-[profiles.presentation]
+[mirror.profiles.presentation]
 max_size = 1080
-bit_rate = "12M"
+video_bit_rate = "12M"
 max_fps = 30
 audio = true
 turn_screen_off = false
 stay_awake = true
-
-[hyprland]
-enabled = true
-special_workspace = "phone"
-window_title_prefix = "hypr-phone"
-floating = true
-center = true
-width = 420
-height = 900
 ```
 
-## Device aliases
+## Device selection
 
-Each device entry gives a stable name for CLI usage:
+Mirror chooses the target in this order:
 
-```bash
-hypr-phone mirror pixel --profile default
-```
-
-Without alias, you can still connect via endpoint:
-
-```bash
-hypr-phone connect 192.168.1.23:5555
-```
+1. `hypr-phone mirror <serial>`
+2. `mirror.device_serial` in config
+3. top-level `device_serial` (legacy compatibility)
+4. first connected device from `adb devices -l`
 
 ## Profile recommendations
 

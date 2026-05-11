@@ -7,7 +7,7 @@ Expected output:
 ```json
 {
   "text": "󰄜 Pixel",
-  "tooltip": "Android device connected: Pixel",
+  "tooltip": "Android device connected: Pixel\nADB: 192.168.1.23:5555",
   "class": "connected"
 }
 ```
