@@ -93,7 +93,7 @@ Core v0.1 command set:
 hypr-phone doctor
 hypr-phone devices
 hypr-phone pair <ip:port> <pairing-code>
-hypr-phone connect <ip:port>
+hypr-phone connect [ip:port]
 hypr-phone disconnect <serial>
 hypr-phone mirror [serial] --profile default
 hypr-phone mirror [serial] --profile low_latency
@@ -105,6 +105,8 @@ hypr-phone config init
 ```
 
 See [docs/usage.md](docs/usage.md) for detailed examples.
+
+Tip: `hypr-phone connect` without an endpoint launches a guided pairing/connect flow. If `qrencode` is installed, it also prints a terminal QR helper payload during pairing.
 
 ## Hyprland Integration
 

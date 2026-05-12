@@ -17,6 +17,7 @@ Optional:
 ```bash
 sudo pacman -S kdeconnect
 sudo pacman -S wofi
+sudo pacman -S qrencode
 ```
 
 ## 2) Build hypr-phone

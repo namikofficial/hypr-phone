@@ -49,6 +49,8 @@ hypr-phone connect
 
 Guided mode asks for pair endpoint + code, runs `adb pair`, then asks for connect endpoint (defaulting to the same IP on port `5555`) and runs `adb connect`.
 
+If `qrencode` is installed, guided mode also prints a terminal QR helper payload during pairing. Without `qrencode`, it falls back to plain text instructions.
+
 ### 4) Mirror using a profile
 
 ```bash
