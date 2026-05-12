@@ -244,16 +244,10 @@ pub fn send_clipboard(serial: Option<&str>, text: &str) -> Result<String> {
         bail!("clipboard text cannot be empty");
     }
 
+    let shell_command = build_clipboard_set_text_shell_command(text);
     run_adb_command_with_optional_serial_owned(
         serial,
-        &[
-            "shell".to_string(),
-            "cmd".to_string(),
-            "clipboard".to_string(),
-            "set".to_string(),
-            "text".to_string(),
-            text.to_string(),
-        ],
+        &["shell".to_string(), shell_command],
     )
 }
 
@@ -295,6 +289,28 @@ pub fn pick_connected_serial(preferred: Option<String>, devices: &[AdbDevice]) -
             .find(|device| device.is_connected())
             .map(|device| device.serial.clone())
     })
+}
+
+fn build_clipboard_set_text_shell_command(text: &str) -> String {
+    format!("cmd clipboard set text {}", quote_posix_shell_single_arg(text))
+}
+
+fn quote_posix_shell_single_arg(raw: &str) -> String {
+    if raw.is_empty() {
+        return "''".to_string();
+    }
+
+    let mut quoted = String::with_capacity(raw.len() + 2);
+    quoted.push('\'');
+    for character in raw.chars() {
+        if character == '\'' {
+            quoted.push_str("'\\''");
+        } else {
+            quoted.push(character);
+        }
+    }
+    quoted.push('\'');
+    quoted
 }
 
 fn run_adb_command_with_optional_serial(serial: Option<&str>, args: &[&str]) -> Result<String> {
@@ -404,5 +420,25 @@ mod tests {
             Some("manual")
         );
         assert_eq!(pick_connected_serial(None, &devices).as_deref(), Some("y"));
+    }
+
+    #[test]
+    fn quotes_shell_single_argument() {
+        assert_eq!(
+            quote_posix_shell_single_arg("can't"),
+            "'can'\\''t'".to_string()
+        );
+        assert_eq!(quote_posix_shell_single_arg(""), "''".to_string());
+    }
+
+    #[test]
+    fn builds_clipboard_shell_command_with_special_characters() {
+        let payload = "space \"quoted\" $(uname) `id`; (x)\nline2";
+        let command = build_clipboard_set_text_shell_command(payload);
+
+        assert_eq!(
+            command,
+            "cmd clipboard set text 'space \"quoted\" $(uname) `id`; (x)\nline2'".to_string()
+        );
     }
 }

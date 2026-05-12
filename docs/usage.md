@@ -34,6 +34,8 @@ hypr-phone gui status
 hypr-phone gui generate-rules
 ```
 
+`gui generate-rules` currently emits `windowrulev2` rules for broad compatibility with existing Hyprland configs.
+
 ## Typical workflow
 
 ### 1) Check environment
@@ -158,6 +160,15 @@ hypr-phone pull /sdcard/DCIM/Camera ./camera pixel
 hypr-phone install-apk ./app-debug.apk pixel --reinstall
 hypr-phone shell --target pixel dumpsys battery
 hypr-phone clipboard send --target pixel --text "hello from hyprland"
+hypr-phone clipboard receive --target pixel
+```
+
+Clipboard send wraps payloads with remote-shell-safe quoting before running `adb shell cmd clipboard set text ...`, so special characters are preserved literally.
+
+Manual device check:
+
+```bash
+hypr-phone clipboard send --target pixel --text "demo $(date) ; (ok) `echo x` can't"
 hypr-phone clipboard receive --target pixel
 ```
 

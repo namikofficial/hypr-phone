@@ -369,7 +369,7 @@ fn screenshot_push_pull_install_shell_and_clipboard_flow() {
     assert!(adb_calls.contains("-s SERIAL-PIXEL pull"));
     assert!(adb_calls.contains("-s SERIAL-PIXEL install -r app.apk"));
     assert!(adb_calls.contains("-s SERIAL-PIXEL shell echo hello"));
-    assert!(adb_calls.contains("-s SERIAL-PIXEL shell cmd clipboard set text from-host"));
+    assert!(adb_calls.contains("-s SERIAL-PIXEL shell cmd clipboard set text 'from-host'"));
 }
 
 #[test]
@@ -407,7 +407,44 @@ fn clipboard_send_keeps_special_characters_literal() {
     assert!(output.status.success());
 
     let adb_calls = fs::read_to_string(&adb_log).expect("read adb log");
-    assert!(adb_calls.contains("-s SERIAL-PIXEL shell cmd clipboard set text safe$(uname)`id`"));
+    assert!(adb_calls.contains("-s SERIAL-PIXEL shell cmd clipboard set text 'safe$(uname)`id`'"));
+}
+
+#[test]
+fn clipboard_send_escapes_single_quotes_for_remote_shell() {
+    let root = unique_dir("clipboard-single-quote");
+    let bin_dir = root.join("bin");
+    let config_root = root.join("config");
+    fs::create_dir_all(&bin_dir).expect("bin dir");
+    fs::create_dir_all(&config_root).expect("config root");
+
+    let adb_log = root.join("adb.log");
+    let devices_output = root.join("adb-devices.txt");
+    fs::write(
+        &devices_output,
+        "List of devices attached\nSERIAL-PIXEL device product:pixel model:Pixel_8\n",
+    )
+    .expect("write devices output");
+
+    write_test_config(&config_root);
+    prepare_adb_script(&bin_dir, &adb_log, &devices_output);
+
+    let output = run_hypr_phone(
+        &[
+            "clipboard",
+            "send",
+            "--target",
+            "pixel",
+            "--text",
+            "can't break",
+        ],
+        &bin_dir,
+        &config_root,
+    );
+    assert!(output.status.success());
+
+    let adb_calls = fs::read_to_string(&adb_log).expect("read adb log");
+    assert!(adb_calls.contains("cmd clipboard set text 'can'\\''t break'"));
 }
 
 #[test]
