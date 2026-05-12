@@ -20,11 +20,28 @@ Create starter config:
 hypr-phone config init
 ```
 
-## Full v0.1 example
+## Stable config v1 example
 
 ```toml
+config_version = 1
 device_serial = "192.168.1.23:5555"
 scrcpy_args = []
+
+[devices.aliases.pixel]
+adb_serial = "192.168.1.23:5555"
+adb_endpoint = "192.168.1.23:5555"
+kdeconnect_id = "kde-pixel"
+
+[reconnect]
+auto_save_history = true
+max_history = 10
+recent_endpoints = ["192.168.1.23:5555"]
+
+[gui]
+tray_enabled = true
+pairing_wizard_enabled = true
+profile_editor_enabled = true
+device_cards_enabled = true
 
 [mirror]
 device_serial = "192.168.1.23:5555"
@@ -99,3 +116,25 @@ title:^(hypr-phone:.*)$
 ```
 
 Use this to auto-float and move mirror windows to a special workspace.
+
+
+## Alias + reconnect behavior
+
+`hypr-phone reconnect <target>` resolves in this order:
+
+1. explicit endpoint (`ip:port`)
+2. alias `devices.aliases.<name>.adb_endpoint`
+3. most-recent entry from `reconnect.recent_endpoints`
+
+Successful `connect`, guided connect, and reconnect commands update history when `reconnect.auto_save_history = true`.
+
+## Stable config migration
+
+Use:
+
+```bash
+hypr-phone config status
+hypr-phone config migrate
+```
+
+`config migrate` rewrites your config in stable v1 format while preserving legacy compatibility fields.

@@ -7,6 +7,7 @@ use std::{
 use anyhow::{bail, Context};
 
 use crate::{
+    adb,
     errors::Result,
     scrcpy::{DEFAULT_PROFILE_NAME, LOW_LATENCY_PROFILE_NAME},
 };
@@ -33,6 +34,11 @@ pub enum MenuAction {
     ListDevices,
     PairWirelessAdb,
     ConnectWirelessAdb,
+    Screenshot,
+    PushFile,
+    PullFile,
+    InstallApk,
+    ShellShortcut,
 }
 
 impl MenuAction {
@@ -43,6 +49,11 @@ impl MenuAction {
             MenuAction::ListDevices => "List devices",
             MenuAction::PairWirelessAdb => "Pair wireless ADB",
             MenuAction::ConnectWirelessAdb => "Connect wireless ADB",
+            MenuAction::Screenshot => "Screenshot",
+            MenuAction::PushFile => "Push file",
+            MenuAction::PullFile => "Pull file",
+            MenuAction::InstallApk => "Install APK",
+            MenuAction::ShellShortcut => "ADB shell shortcut",
         }
     }
 
@@ -78,6 +89,11 @@ pub fn v01_actions() -> Vec<MenuAction> {
         MenuAction::ListDevices,
         MenuAction::PairWirelessAdb,
         MenuAction::ConnectWirelessAdb,
+        MenuAction::Screenshot,
+        MenuAction::PushFile,
+        MenuAction::PullFile,
+        MenuAction::InstallApk,
+        MenuAction::ShellShortcut,
     ]
 }
 
@@ -134,14 +150,53 @@ pub fn build_action_command(
             ])?))
         }
         MenuAction::ConnectWirelessAdb => {
-            let Some(endpoint) = prompt_endpoint(backend, "Connect endpoint (ip:port)", 5555)?
-            else {
+            Ok(Some(build_hypr_phone_command(vec!["connect".to_string()])?))
+        }
+        MenuAction::Screenshot => Ok(Some(build_hypr_phone_command(vec![
+            "screenshot".to_string()
+        ])?)),
+        MenuAction::PushFile => {
+            let Some(local) = prompt_text(backend, "Local file path")? else {
                 return Ok(None);
             };
-
+            let Some(remote) = prompt_text(backend, "Remote file path")? else {
+                return Ok(None);
+            };
             Ok(Some(build_hypr_phone_command(vec![
-                "connect".to_string(),
-                endpoint,
+                "push".to_string(),
+                local,
+                remote,
+            ])?))
+        }
+        MenuAction::PullFile => {
+            let Some(remote) = prompt_text(backend, "Remote file path")? else {
+                return Ok(None);
+            };
+            let Some(local) = prompt_text(backend, "Local file path")? else {
+                return Ok(None);
+            };
+            Ok(Some(build_hypr_phone_command(vec![
+                "pull".to_string(),
+                remote,
+                local,
+            ])?))
+        }
+        MenuAction::InstallApk => {
+            let Some(apk) = prompt_text(backend, "APK path")? else {
+                return Ok(None);
+            };
+            Ok(Some(build_hypr_phone_command(vec![
+                "install-apk".to_string(),
+                apk,
+            ])?))
+        }
+        MenuAction::ShellShortcut => {
+            let Some(shell_cmd) = prompt_text(backend, "Shell command")? else {
+                return Ok(None);
+            };
+            Ok(Some(build_hypr_phone_command(vec![
+                "shell".to_string(),
+                shell_cmd,
             ])?))
         }
     }
@@ -195,7 +250,7 @@ fn prompt_endpoint(
         return Ok(None);
     };
 
-    Ok(Some(normalize_endpoint(&endpoint, default_port)))
+    Ok(Some(adb::normalize_endpoint(&endpoint, default_port)))
 }
 
 fn prompt_text(backend: MenuBackend, prompt: &str) -> Result<Option<String>> {
@@ -208,15 +263,6 @@ fn prompt_text(backend: MenuBackend, prompt: &str) -> Result<Option<String>> {
         Ok(None)
     } else {
         Ok(Some(trimmed.to_string()))
-    }
-}
-
-fn normalize_endpoint(raw: &str, default_port: u16) -> String {
-    let trimmed = raw.trim();
-    if trimmed.contains(':') {
-        trimmed.to_string()
-    } else {
-        format!("{trimmed}:{default_port}")
     }
 }
 
@@ -261,5 +307,21 @@ fn run_dmenu(backend: MenuBackend, prompt: &str, entries: &[String]) -> Result<O
         Ok(None)
     } else {
         Ok(Some(selected))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn includes_new_v02_actions() {
+        let labels = v01_actions()
+            .into_iter()
+            .map(|action| action.label().to_string())
+            .collect::<Vec<_>>();
+        assert!(labels.iter().any(|label| label == "Screenshot"));
+        assert!(labels.iter().any(|label| label == "Push file"));
+        assert!(labels.iter().any(|label| label == "Install APK"));
     }
 }

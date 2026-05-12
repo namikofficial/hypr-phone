@@ -17,6 +17,7 @@ Optional:
 ```bash
 sudo pacman -S kdeconnect
 sudo pacman -S wofi
+sudo pacman -S qrencode
 ```
 
 ## 2) Build hypr-phone
@@ -27,17 +28,26 @@ cd hypr-phone
 cargo build --release
 ```
 
-## 3) Install for immediate testing
+## 3) Install globally (user-local)
 
 ```bash
-cargo install --path .
-# or: install -Dm755 ./target/release/hypr-phone ~/.local/bin/hypr-phone
+./scripts/install-global.sh
+```
+
+This script:
+
+- Runs `cargo install --path . --force` from the project root
+- Ensures `~/.local/bin` exists
+- Creates/updates:
+
+```txt
+~/.local/bin/hypr-phone -> ${CARGO_HOME:-$HOME/.cargo}/bin/hypr-phone
 ```
 
 Quick check:
 
 ```bash
-hypr-phone --help
+~/.local/bin/hypr-phone --help
 ```
 
 ## 4) Ensure PATH includes local bins
