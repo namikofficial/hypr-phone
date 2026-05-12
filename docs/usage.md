@@ -8,7 +8,7 @@ hypr-phone v0.1 is a terminal-first Android companion for Hyprland.
 hypr-phone doctor
 hypr-phone devices
 hypr-phone pair <ip:port> <pairing-code>
-hypr-phone connect <ip:port>
+hypr-phone connect [ip:port]
 hypr-phone disconnect <serial>
 hypr-phone mirror [serial] [--profile default]
 hypr-phone mirror [serial] --profile low_latency
@@ -40,6 +40,14 @@ hypr-phone devices --json
 hypr-phone pair 192.168.1.23:37123 123456
 hypr-phone connect 192.168.1.23:5555
 ```
+
+Or use guided mode:
+
+```bash
+hypr-phone connect
+```
+
+Guided mode asks for pair endpoint + code, runs `adb pair`, then asks for connect endpoint (defaulting to the same IP on port `5555`) and runs `adb connect`.
 
 ### 4) Mirror using a profile
 
@@ -93,7 +101,7 @@ Minimum v0.1 menu actions:
 - Mirror low latency
 - List devices
 - Pair wireless ADB
-- Connect wireless ADB
+- Connect wireless ADB (guided flow)
 
 ## Mirror profile behavior
 

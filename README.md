@@ -58,14 +58,19 @@ cd hypr-phone
 cargo build --release
 ```
 
-Install locally for immediate testing:
+Install globally (user-local) in one command:
 
 ```bash
-cargo install --path .
-# or: install -Dm755 ./target/release/hypr-phone ~/.local/bin/hypr-phone
+./scripts/install-global.sh
 ```
 
-If `hypr-phone` is not found, ensure your shell PATH includes local bins:
+The installer runs `cargo install --path . --force`, then creates/updates:
+
+```txt
+~/.local/bin/hypr-phone -> ${CARGO_HOME:-$HOME/.cargo}/bin/hypr-phone
+```
+
+If `hypr-phone` is not found in new terminals, ensure your shell PATH includes local bins:
 
 ```bash
 export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
