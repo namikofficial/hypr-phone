@@ -4,24 +4,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::adb;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct ModuleOutput {
-    pub lines: Vec<String>,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ModuleStatus {
     pub text: String,
     pub tooltip: String,
     pub class: String,
-}
-
-impl ModuleOutput {
-    pub fn placeholder(module_name: &str) -> Self {
-        Self {
-            lines: vec![format!("{module_name}: not implemented")],
-        }
-    }
 }
 
 impl ModuleStatus {
@@ -51,10 +38,6 @@ pub fn status_with_timeout(timeout: Duration) -> ModuleStatus {
             .unwrap_or_else(ModuleStatus::disconnected),
         Err(_) => ModuleStatus::disconnected(),
     }
-}
-
-pub fn fast_status() -> ModuleStatus {
-    status_with_timeout(Duration::from_millis(750))
 }
 
 pub fn status_json_with_timeout(timeout: Duration) -> String {

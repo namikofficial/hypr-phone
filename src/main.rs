@@ -19,9 +19,7 @@ fn main() -> Result<()> {
 
     match args.command.unwrap_or(cli::Command::Run) {
         cli::Command::Run => {
-            let _ = config::Config::load_default()?;
-            let output = module_output::ModuleOutput::placeholder("run");
-            println!("{}", menu::build_menu(&output));
+            run_menu()?;
         }
         cli::Command::Doctor => {
             run_doctor()?;
@@ -44,6 +42,15 @@ fn main() -> Result<()> {
             let output = adb::disconnect(&serial)?;
             print_command_output(&output);
         }
+        cli::Command::Mirror { device, profile } => {
+            run_mirror(device, profile)?;
+        }
+        cli::Command::Module => {
+            println!("{}", module_output::fast_status_json());
+        }
+        cli::Command::Menu => {
+            run_menu()?;
+        }
         cli::Command::Config { command } => match command {
             cli::ConfigCommand::Path => {
                 println!("{}", default_config_path()?.display());
@@ -54,6 +61,43 @@ fn main() -> Result<()> {
         },
     }
 
+    Ok(())
+}
+
+fn run_mirror(device: Option<String>, profile: Option<String>) -> Result<()> {
+    let config = config::Config::load_default()?;
+    let launch = scrcpy::launch_mirror(
+        &config,
+        scrcpy::MirrorRequest {
+            device_serial: device.as_deref(),
+            profile: profile.as_deref(),
+        },
+    )?;
+
+    let target = launch
+        .resolved
+        .device_serial
+        .as_deref()
+        .map(|serial| format!(" for `{serial}`"))
+        .unwrap_or_default();
+    println!(
+        "Started scrcpy (pid {}) with profile `{}`{}.",
+        launch.child.id(),
+        launch.resolved.profile_name,
+        target
+    );
+
+    if let Some(error) = launch.hyprland_error {
+        eprintln!("[warn] Hyprland placement could not be applied: {error}");
+    }
+
+    Ok(())
+}
+
+fn run_menu() -> Result<()> {
+    if let Some(output) = menu::launch_and_execute_v01_menu()? {
+        print_command_output(&output);
+    }
     Ok(())
 }
 

@@ -36,6 +36,18 @@ pub enum Command {
         /// Device serial or endpoint.
         serial: String,
     },
+    /// Launch scrcpy mirroring with config profile support.
+    Mirror {
+        /// Device serial or endpoint (`adb` serial format).
+        device: Option<String>,
+        /// Scrcpy profile name from config.
+        #[arg(long)]
+        profile: Option<String>,
+    },
+    /// Print Waybar/Wayle module JSON status.
+    Module,
+    /// Open the interactive rofi/wofi menu.
+    Menu,
     /// Manage configuration.
     Config {
         #[command(subcommand)]

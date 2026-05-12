@@ -1,16 +1,20 @@
 use std::{
     path::{Path, PathBuf},
     process::{Child, Command},
+    time::Duration,
 };
 
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, bail, Context};
 use serde::{Deserialize, Serialize};
 
+use crate::adb;
 use crate::config::Config;
-use crate::errors::Result;
+use crate::errors::{missing_dependency, Result};
 use crate::hyprland::{self, HyprlandPlacementConfig};
 
 pub const DEFAULT_PROFILE_NAME: &str = "default";
+pub const LOW_LATENCY_PROFILE_NAME: &str = "low_latency";
+pub const PRESENTATION_PROFILE_NAME: &str = "presentation";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
@@ -138,11 +142,35 @@ pub fn resolve_mirror_config(
         .cloned()
         .ok_or_else(|| anyhow!("scrcpy profile '{profile_name}' is not defined in config"))?;
 
-    let device_serial = request
+    let devices = adb::list_devices_with_timeout(Duration::from_millis(750))?;
+
+    let mut device_serial = request
         .device_serial
         .map(ToOwned::to_owned)
         .or_else(|| config.mirror.device_serial.clone())
         .or_else(|| config.device_serial.clone());
+
+    if device_serial.is_none() {
+        device_serial = devices
+            .iter()
+            .find(|device| device.is_connected())
+            .map(|device| device.serial.clone());
+    }
+
+    let Some(serial) = device_serial.as_deref() else {
+        bail!(
+            "No connected adb device found. Run `hypr-phone devices` first or pass a serial: `hypr-phone mirror <serial>`."
+        );
+    };
+
+    if !devices
+        .iter()
+        .any(|device| device.serial == serial && device.is_connected())
+    {
+        bail!(
+            "ADB device `{serial}` is not connected. Run `hypr-phone devices` and reconnect before mirroring."
+        );
+    }
 
     let window_title = build_window_title(
         config.mirror.window_title_prefix.as_str(),
@@ -206,5 +234,10 @@ pub fn launch_mirror(config: &Config, request: MirrorRequest<'_>) -> Result<Mirr
 }
 
 pub fn scrcpy_path() -> Result<PathBuf> {
-    Ok(which::which("scrcpy")?)
+    which::which("scrcpy").map_err(|_| {
+        missing_dependency(
+            "scrcpy",
+            "Install `scrcpy` and ensure it is available in PATH.",
+        )
+    })
 }

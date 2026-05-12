@@ -27,19 +27,34 @@ cd hypr-phone
 cargo build --release
 ```
 
-Use the binary directly:
+## 3) Install for immediate testing
 
 ```bash
-./target/release/hypr-phone --help
+cargo install --path .
+# or: install -Dm755 ./target/release/hypr-phone ~/.local/bin/hypr-phone
 ```
 
-Optional: install to local bin:
+Quick check:
 
 ```bash
-install -Dm755 ./target/release/hypr-phone ~/.local/bin/hypr-phone
+hypr-phone --help
 ```
 
-## 3) Initialize config
+## 4) Ensure PATH includes local bins
+
+Add this to your shell rc (`~/.bashrc`, `~/.zshrc`) if needed:
+
+```bash
+export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
+```
+
+Then reload your shell and verify:
+
+```bash
+command -v hypr-phone
+```
+
+## 5) Initialize config
 
 ```bash
 hypr-phone config init
@@ -52,7 +67,16 @@ Default config path:
 ~/.config/hypr-phone/config.toml
 ```
 
-## 4) Verify environment
+## 6) Hyprland integration (apply now)
+
+```bash
+mkdir -p ~/.config/hypr
+cp ./examples/hyprland.conf ~/.config/hypr/hypr-phone.conf
+grep -qxF 'source = ~/.config/hypr/hypr-phone.conf' ~/.config/hypr/hyprland.conf || echo 'source = ~/.config/hypr/hypr-phone.conf' >> ~/.config/hypr/hyprland.conf
+hyprctl reload
+```
+
+## 7) Verify environment
 
 ```bash
 hypr-phone doctor
@@ -67,14 +91,7 @@ Expected checks include:
 - notify-send
 - rofi or wofi
 
-## 5) Add integration snippets
-
-- Hyprland rules: `examples/hyprland.conf`
-- Waybar module: `examples/waybar-module.json`
-- Wayle notes: `examples/wayle-module.md`
-- Launcher scripts: `examples/rofi-hypr-phone.sh`, `examples/wofi-hypr-phone.sh`
-
-## 6) First mirror test
+## 8) First mirror test
 
 ```bash
 hypr-phone devices

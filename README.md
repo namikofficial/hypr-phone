@@ -58,13 +58,20 @@ cd hypr-phone
 cargo build --release
 ```
 
-Binary path:
+Install locally for immediate testing:
 
 ```bash
-./target/release/hypr-phone
+cargo install --path .
+# or: install -Dm755 ./target/release/hypr-phone ~/.local/bin/hypr-phone
 ```
 
-See [docs/install.md](docs/install.md) for full setup.
+If `hypr-phone` is not found, ensure your shell PATH includes local bins:
+
+```bash
+export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
+```
+
+See [docs/install.md](docs/install.md) for full setup and first-run checks.
 
 ## Usage
 
@@ -96,16 +103,16 @@ See [docs/usage.md](docs/usage.md) for detailed examples.
 
 ## Hyprland Integration
 
-Use title-based rules for the scrcpy window launched by hypr-phone:
+Apply the example rules now:
 
-```ini
-windowrulev2 = float, title:^(hypr-phone:.*)$
-windowrulev2 = size 420 900, title:^(hypr-phone:.*)$
-windowrulev2 = center, title:^(hypr-phone:.*)$
-windowrulev2 = workspace special:phone, title:^(hypr-phone:.*)$
+```bash
+mkdir -p ~/.config/hypr
+cp ./examples/hyprland.conf ~/.config/hypr/hypr-phone.conf
+grep -qxF 'source = ~/.config/hypr/hypr-phone.conf' ~/.config/hypr/hyprland.conf || echo 'source = ~/.config/hypr/hypr-phone.conf' >> ~/.config/hypr/hyprland.conf
+hyprctl reload
 ```
 
-Ready-to-copy file: [examples/hyprland.conf](examples/hyprland.conf)
+Rules file: [examples/hyprland.conf](examples/hyprland.conf)
 
 ## Waybar/Wayle Integration
 

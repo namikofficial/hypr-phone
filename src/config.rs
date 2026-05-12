@@ -9,7 +9,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::errors::Result;
 use crate::hyprland::HyprlandPlacementConfig;
-use crate::scrcpy::{ScrcpyProfile, DEFAULT_PROFILE_NAME};
+use crate::scrcpy::{
+    ScrcpyProfile, DEFAULT_PROFILE_NAME, LOW_LATENCY_PROFILE_NAME, PRESENTATION_PROFILE_NAME,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
@@ -88,7 +90,9 @@ pub struct MirrorConfig {
 impl Default for MirrorConfig {
     fn default() -> Self {
         let mut profiles = BTreeMap::new();
-        profiles.insert(DEFAULT_PROFILE_NAME.to_owned(), ScrcpyProfile::default());
+        profiles.insert(DEFAULT_PROFILE_NAME.to_owned(), default_profile());
+        profiles.insert(LOW_LATENCY_PROFILE_NAME.to_owned(), low_latency_profile());
+        profiles.insert(PRESENTATION_PROFILE_NAME.to_owned(), presentation_profile());
 
         Self {
             device_serial: None,
@@ -97,5 +101,35 @@ impl Default for MirrorConfig {
             profiles,
             hyprland: HyprlandPlacementConfig::default(),
         }
+    }
+}
+
+fn default_profile() -> ScrcpyProfile {
+    ScrcpyProfile {
+        video_bit_rate: Some("8M".to_owned()),
+        max_size: Some(1080),
+        max_fps: Some(60),
+        audio: true,
+        ..ScrcpyProfile::default()
+    }
+}
+
+fn low_latency_profile() -> ScrcpyProfile {
+    ScrcpyProfile {
+        video_bit_rate: Some("4M".to_owned()),
+        max_size: Some(720),
+        max_fps: Some(60),
+        turn_screen_off: true,
+        ..ScrcpyProfile::default()
+    }
+}
+
+fn presentation_profile() -> ScrcpyProfile {
+    ScrcpyProfile {
+        video_bit_rate: Some("12M".to_owned()),
+        max_size: Some(1080),
+        max_fps: Some(30),
+        audio: true,
+        ..ScrcpyProfile::default()
     }
 }

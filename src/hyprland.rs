@@ -9,22 +9,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::errors::Result;
 
-pub fn active_workspace_json() -> Result<serde_json::Value> {
-    let output = Command::new("hyprctl")
-        .args(["-j", "activeworkspace"])
-        .output()
-        .context("failed to execute hyprctl")?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        bail!("hyprctl -j activeworkspace failed: {}", stderr.trim());
-    }
-
-    let parsed = serde_json::from_slice(&output.stdout)
-        .context("failed to parse hyprctl activeworkspace output as JSON")?;
-    Ok(parsed)
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct HyprlandPlacementConfig {
@@ -40,9 +24,9 @@ impl Default for HyprlandPlacementConfig {
     fn default() -> Self {
         Self {
             enabled: true,
-            workspace: "special".to_owned(),
-            width: 480,
-            height: 960,
+            workspace: "special:phone".to_owned(),
+            width: 420,
+            height: 900,
             retry_timeout_ms: 3000,
             retry_interval_ms: 200,
         }

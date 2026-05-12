@@ -1,12 +1,15 @@
 use std::{
+    env,
     io::Write,
     process::{Command, Stdio},
-    time::Duration,
 };
 
 use anyhow::{bail, Context};
 
-use crate::{adb, errors::Result, module_output::ModuleOutput, scrcpy};
+use crate::{
+    errors::Result,
+    scrcpy::{DEFAULT_PROFILE_NAME, LOW_LATENCY_PROFILE_NAME},
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MenuBackend {
@@ -54,10 +57,6 @@ impl MenuAction {
 pub struct ActionCommand {
     pub program: String,
     pub args: Vec<String>,
-}
-
-pub fn build_menu(output: &ModuleOutput) -> String {
-    output.lines.join("\n")
 }
 
 pub fn detect_menu_backend() -> Option<MenuBackend> {
@@ -109,12 +108,17 @@ pub fn build_action_command(
     backend: MenuBackend,
 ) -> Result<Option<ActionCommand>> {
     match action {
-        MenuAction::MirrorDefaultDevice => Ok(Some(build_mirror_command(false)?)),
-        MenuAction::MirrorLowLatency => Ok(Some(build_mirror_command(true)?)),
-        MenuAction::ListDevices => Ok(Some(ActionCommand {
-            program: adb::adb_path()?.to_string_lossy().into_owned(),
-            args: vec!["devices".to_string(), "-l".to_string()],
-        })),
+        MenuAction::MirrorDefaultDevice => Ok(Some(build_hypr_phone_command(vec![
+            "mirror".to_string(),
+            "--profile".to_string(),
+            DEFAULT_PROFILE_NAME.to_string(),
+        ])?)),
+        MenuAction::MirrorLowLatency => Ok(Some(build_hypr_phone_command(vec![
+            "mirror".to_string(),
+            "--profile".to_string(),
+            LOW_LATENCY_PROFILE_NAME.to_string(),
+        ])?)),
+        MenuAction::ListDevices => Ok(Some(build_hypr_phone_command(vec!["devices".to_string()])?)),
         MenuAction::PairWirelessAdb => {
             let Some(endpoint) = prompt_endpoint(backend, "Pair endpoint (ip:port)", 37123)? else {
                 return Ok(None);
@@ -123,10 +127,11 @@ pub fn build_action_command(
                 return Ok(None);
             };
 
-            Ok(Some(ActionCommand {
-                program: adb::adb_path()?.to_string_lossy().into_owned(),
-                args: vec!["pair".to_string(), endpoint, code],
-            }))
+            Ok(Some(build_hypr_phone_command(vec![
+                "pair".to_string(),
+                endpoint,
+                code,
+            ])?))
         }
         MenuAction::ConnectWirelessAdb => {
             let Some(endpoint) = prompt_endpoint(backend, "Connect endpoint (ip:port)", 5555)?
@@ -134,31 +139,15 @@ pub fn build_action_command(
                 return Ok(None);
             };
 
-            Ok(Some(ActionCommand {
-                program: adb::adb_path()?.to_string_lossy().into_owned(),
-                args: vec!["connect".to_string(), endpoint],
-            }))
+            Ok(Some(build_hypr_phone_command(vec![
+                "connect".to_string(),
+                endpoint,
+            ])?))
         }
     }
 }
 
 pub fn execute_action_command(command: &ActionCommand) -> Result<String> {
-    if command.program.contains("scrcpy") {
-        Command::new(&command.program)
-            .args(&command.args)
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()
-            .with_context(|| format!("failed to launch `{}`", command.program))?;
-
-        return Ok(format!(
-            "started: {} {}",
-            command.program,
-            command.args.join(" ")
-        ));
-    }
-
     let output = Command::new(&command.program)
         .args(&command.args)
         .output()
@@ -166,10 +155,12 @@ pub fn execute_action_command(command: &ActionCommand) -> Result<String> {
 
     if output.status.success() {
         let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        if stdout.is_empty() {
-            Ok("ok".to_string())
-        } else {
-            Ok(stdout)
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        match (stdout.is_empty(), stderr.is_empty()) {
+            (true, true) => Ok("ok".to_string()),
+            (false, true) => Ok(stdout),
+            (true, false) => Ok(stderr),
+            (false, false) => Ok(format!("{stdout}\n{stderr}")),
         }
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
@@ -186,41 +177,11 @@ pub fn execute_action_command(command: &ActionCommand) -> Result<String> {
     }
 }
 
-fn build_mirror_command(low_latency: bool) -> Result<ActionCommand> {
-    let mut args = vec![
-        "--max-size".to_string(),
-        if low_latency {
-            "720".to_string()
-        } else {
-            "1080".to_string()
-        },
-        "--bit-rate".to_string(),
-        if low_latency {
-            "4M".to_string()
-        } else {
-            "8M".to_string()
-        },
-        "--max-fps".to_string(),
-        "60".to_string(),
-    ];
-
-    if low_latency {
-        args.push("--no-audio".to_string());
-        args.push("--turn-screen-off".to_string());
-        args.push("--stay-awake".to_string());
-    }
-
-    if let Some(serial) = adb::list_devices_with_timeout(Duration::from_millis(500))?
-        .into_iter()
-        .find(|device| device.is_connected())
-        .map(|device| device.serial)
-    {
-        args.insert(0, serial);
-        args.insert(0, "-s".to_string());
-    }
-
+fn build_hypr_phone_command(args: Vec<String>) -> Result<ActionCommand> {
+    let program = env::current_exe()
+        .context("failed to resolve hypr-phone executable path for menu action")?;
     Ok(ActionCommand {
-        program: scrcpy::scrcpy_path()?.to_string_lossy().into_owned(),
+        program: program.to_string_lossy().into_owned(),
         args,
     })
 }
