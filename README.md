@@ -53,7 +53,7 @@ sudo pacman -S wofi
 ### Build
 
 ```bash
-git clone https://github.com/<you>/hypr-phone.git
+git clone https://github.com/namikofficial/hypr-phone.git
 cd hypr-phone
 cargo build --release
 ```
