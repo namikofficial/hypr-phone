@@ -1,0 +1,10 @@
+pub mod adb;
+pub mod cli;
+pub mod config;
+pub mod errors;
+pub mod gui;
+pub mod hyprland;
+pub mod kdeconnect;
+pub mod menu;
+pub mod module_output;
+pub mod scrcpy;

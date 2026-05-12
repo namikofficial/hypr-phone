@@ -241,3 +241,52 @@ pub fn scrcpy_path() -> Result<PathBuf> {
         )
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::Config;
+
+    #[test]
+    fn builds_window_title_from_prefix_and_serial() {
+        assert_eq!(
+            build_window_title("hypr-phone", "default", Some("192.168.1.2:5555")),
+            "hypr-phone:192.168.1.2:5555"
+        );
+        assert_eq!(
+            build_window_title("", "default", None),
+            "hypr-phone:default"
+        );
+    }
+
+    #[test]
+    fn includes_expected_scrcpy_flags() {
+        let profile = ScrcpyProfile {
+            audio: false,
+            stay_awake: true,
+            turn_screen_off: true,
+            max_fps: Some(30),
+            ..ScrcpyProfile::default()
+        };
+        let args = profile.to_args(Some("serial"), "title");
+        assert!(args.windows(2).any(|pair| pair == ["--serial", "serial"]));
+        assert!(args
+            .windows(2)
+            .any(|pair| pair == ["--window-title", "title"]));
+        assert!(args.contains(&"--no-audio".to_string()));
+        assert!(args.contains(&"--turn-screen-off".to_string()));
+    }
+
+    #[test]
+    fn fails_when_profile_missing() {
+        let config = Config::default();
+        let result = resolve_mirror_config(
+            &config,
+            MirrorRequest {
+                device_serial: Some("serial"),
+                profile: Some("missing"),
+            },
+        );
+        assert!(result.is_err());
+    }
+}

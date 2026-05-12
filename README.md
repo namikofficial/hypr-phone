@@ -23,17 +23,19 @@ Linux already has great Android tools, but they are fragmented:
 
 ## Features
 
-v0.1 is a **CLI-first MVP**:
+Current CLI includes v0.1 foundations plus major v0.2/v0.3 helpers:
 
-- List Android devices (`hypr-phone devices`)
-- Pair wireless ADB (`hypr-phone pair <ip:port> <pairing-code>`)
-- Connect wireless ADB (`hypr-phone connect <ip:port>`)
-- Launch `scrcpy` using named profiles
-- Hyprland-friendly mirroring workflow (floating + special workspace)
-- Waybar/Wayle-ready JSON state output (`hypr-phone module`)
-- Quick launcher menu for rofi/wofi (`hypr-phone menu`)
+- Device listing + wireless pair/connect/reconnect (`devices`, `pair`, `connect`, `reconnect`)
+- Device aliases in stable config v1 (`[devices.aliases.<name>]`)
+- Mirroring profiles + Hyprland placement (`mirror`)
+- Screenshot / file transfer / APK install / shell helpers (`screenshot`, `push`, `pull`, `install-apk`, `shell`)
+- Clipboard send/receive bridge (`clipboard send`, `clipboard receive`)
+- KDE Connect bridge (`kde devices|battery|ring|notify|media`) with graceful fallback if `kdeconnect-cli` is missing
+- Waybar/Wayle-ready JSON state output (`module`)
+- Quick launcher menu for rofi/wofi (`menu`)
+- GUI/tray scaffolding + rule generation (`gui status`, `gui generate-rules`)
 
-> No GUI in v0.1. The goal is a reliable terminal-first tool.
+> GUI remains scaffold-stage; CLI is still the primary workflow.
 
 ## Install
 
@@ -87,21 +89,32 @@ hypr-phone config init
 hypr-phone doctor
 ```
 
-Core v0.1 command set:
+Core command set:
 
 ```bash
 hypr-phone doctor
-hypr-phone devices
+hypr-phone devices [--json]
 hypr-phone pair <ip:port> <pairing-code>
 hypr-phone connect [ip:port]
+hypr-phone reconnect [alias|ip:port]
 hypr-phone disconnect <serial>
 hypr-phone mirror [serial] --profile default
-hypr-phone mirror [serial] --profile low_latency
-hypr-phone mirror [serial] --profile presentation
+hypr-phone screenshot [alias|serial] [output.png]
+hypr-phone push <local> <remote> [alias|serial]
+hypr-phone pull <remote> <local> [alias|serial]
+hypr-phone install-apk <app.apk> [alias|serial] [--reinstall]
+hypr-phone shell [--target alias|serial] <command...>
+hypr-phone clipboard send [--target alias|serial] [--text "..."]
+hypr-phone clipboard receive [--target alias|serial]
+hypr-phone kde devices
+hypr-phone kde battery [--target alias|kde-id]
+hypr-phone kde ring [--target alias|kde-id]
+hypr-phone kde notify [--target alias|kde-id] --title "..." --body "..."
+hypr-phone kde media [--target alias|kde-id] <play|pause|play-pause|stop|next|previous>
 hypr-phone module
 hypr-phone menu
-hypr-phone config path
-hypr-phone config init
+hypr-phone config path|init|status|migrate
+hypr-phone gui status|generate-rules
 ```
 
 See [docs/usage.md](docs/usage.md) for detailed examples.
@@ -140,36 +153,34 @@ Rules file: [examples/hyprland.conf](examples/hyprland.conf)
 
 ### v0.2
 
-- Device aliases
-- Better wireless reconnect
-- Screenshot command
-- File push/pull
-- APK install
-- ADB shell shortcut
-- Clipboard send/receive helpers
+- ✅ Device aliases
+- ✅ Better wireless reconnect
+- ✅ Screenshot command
+- ✅ File push/pull
+- ✅ APK install
+- ✅ ADB shell shortcut
+- ✅ Clipboard send/receive helpers
 
 ### v0.3
 
-- KDE Connect bridge
-- Notification sync helpers
-- Battery status
-- Ring/find phone action
-- Media control
+- ✅ KDE Connect bridge (graceful fallback when missing)
+- ✅ Notification sync helpers (`kde notify`)
+- ✅ Battery status (`kde battery`)
+- ✅ Ring/find phone action (`kde ring`)
+- ✅ Media control (`kde media`)
 
 ### v0.4
 
-- Tauri GUI
-- Device cards
-- Pairing wizard
-- Profile editor
-- Hyprland rule generator
+- 🚧 Tauri GUI groundwork (`gui status`)
+- 🚧 Device card/pairing/profile scaffolding in stable config
+- ✅ Hyprland rule generator (`gui generate-rules`)
 
 ### v1.0
 
-- Polished GUI + tray/status
-- Stable config format
-- AUR + Nix + distro packaging
-- Dedicated docs site
+- 🚧 Stable config format path (`config_version = 1`, `config status`, `config migrate`)
+- 🚧 Polished GUI + tray/status
+- ⏳ AUR + Nix + distro packaging
+- ⏳ Dedicated docs site
 
 ## Contributing
 

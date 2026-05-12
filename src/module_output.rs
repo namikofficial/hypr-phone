@@ -29,13 +29,17 @@ impl ModuleStatus {
     }
 }
 
+pub fn status_from_devices(devices: &[adb::AdbDevice]) -> ModuleStatus {
+    devices
+        .iter()
+        .find(|device| device.is_connected())
+        .map(|device| ModuleStatus::connected(device.display_name(), &device.serial))
+        .unwrap_or_else(ModuleStatus::disconnected)
+}
+
 pub fn status_with_timeout(timeout: Duration) -> ModuleStatus {
     match adb::list_devices_with_timeout(timeout) {
-        Ok(devices) => devices
-            .into_iter()
-            .find(|device| device.is_connected())
-            .map(|device| ModuleStatus::connected(device.display_name(), &device.serial))
-            .unwrap_or_else(ModuleStatus::disconnected),
+        Ok(devices) => status_from_devices(&devices),
         Err(_) => ModuleStatus::disconnected(),
     }
 }
@@ -50,4 +54,29 @@ pub fn status_json_with_timeout(timeout: Duration) -> String {
 
 pub fn fast_status_json() -> String {
     status_json_with_timeout(Duration::from_millis(750))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn builds_connected_status() {
+        let devices = vec![adb::AdbDevice {
+            serial: "192.168.1.10:5555".to_string(),
+            state: "device".to_string(),
+            model: Some("Pixel 6".to_string()),
+            product: None,
+        }];
+        let status = status_from_devices(&devices);
+        assert_eq!(status.class, "connected");
+        assert!(status.tooltip.contains("Pixel 6"));
+    }
+
+    #[test]
+    fn builds_disconnected_status() {
+        let status = status_from_devices(&[]);
+        assert_eq!(status.class, "disconnected");
+        assert!(status.text.contains("No phone"));
+    }
 }
