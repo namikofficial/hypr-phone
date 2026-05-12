@@ -85,11 +85,30 @@ pub fn parse_devices_output(output: &str) -> Vec<AdbDevice> {
 }
 
 pub fn devices() -> Result<Vec<AdbDevice>> {
-    list_devices()
+    list_devices_blocking()
 }
 
-pub fn list_devices() -> Result<Vec<AdbDevice>> {
-    list_devices_with_timeout(Duration::from_secs(2))
+pub fn list_devices_blocking() -> Result<Vec<AdbDevice>> {
+    let adb = adb_path()?;
+    let args = ["devices", "-l"];
+    let output = Command::new(&adb)
+        .args(args)
+        .output()
+        .map_err(|err| command_spawn_error("adb", &args, err))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    if !output.status.success() {
+        return Err(command_failed_error(
+            "adb",
+            &args,
+            output.status,
+            &stdout,
+            &stderr,
+        ));
+    }
+
+    Ok(parse_devices_output(&stdout))
 }
 
 pub fn list_devices_with_timeout(timeout: Duration) -> Result<Vec<AdbDevice>> {
@@ -170,6 +189,15 @@ pub fn validate_ip_port(endpoint: &str) -> Result<()> {
     }
 
     Ok(())
+}
+
+pub fn normalize_endpoint(raw: &str, default_port: u16) -> String {
+    let trimmed = raw.trim();
+    if trimmed.contains(':') {
+        trimmed.to_string()
+    } else {
+        format!("{trimmed}:{default_port}")
+    }
 }
 
 fn run_adb_command(args: &[&str]) -> Result<String> {

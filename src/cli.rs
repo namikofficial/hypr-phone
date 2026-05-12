@@ -28,8 +28,8 @@ pub enum Command {
     },
     /// Connect over Wi-Fi using `adb connect`.
     Connect {
-        /// Endpoint in the form `ip:port`.
-        endpoint: String,
+        /// Endpoint in the form `ip:port`. If omitted, starts guided pairing + connect flow.
+        endpoint: Option<String>,
     },
     /// Disconnect an adb device by serial.
     Disconnect {

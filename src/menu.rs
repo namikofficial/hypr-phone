@@ -7,6 +7,7 @@ use std::{
 use anyhow::{bail, Context};
 
 use crate::{
+    adb,
     errors::Result,
     scrcpy::{DEFAULT_PROFILE_NAME, LOW_LATENCY_PROFILE_NAME},
 };
@@ -134,15 +135,7 @@ pub fn build_action_command(
             ])?))
         }
         MenuAction::ConnectWirelessAdb => {
-            let Some(endpoint) = prompt_endpoint(backend, "Connect endpoint (ip:port)", 5555)?
-            else {
-                return Ok(None);
-            };
-
-            Ok(Some(build_hypr_phone_command(vec![
-                "connect".to_string(),
-                endpoint,
-            ])?))
+            Ok(Some(build_hypr_phone_command(vec!["connect".to_string()])?))
         }
     }
 }
@@ -195,7 +188,7 @@ fn prompt_endpoint(
         return Ok(None);
     };
 
-    Ok(Some(normalize_endpoint(&endpoint, default_port)))
+    Ok(Some(adb::normalize_endpoint(&endpoint, default_port)))
 }
 
 fn prompt_text(backend: MenuBackend, prompt: &str) -> Result<Option<String>> {
@@ -208,15 +201,6 @@ fn prompt_text(backend: MenuBackend, prompt: &str) -> Result<Option<String>> {
         Ok(None)
     } else {
         Ok(Some(trimmed.to_string()))
-    }
-}
-
-fn normalize_endpoint(raw: &str, default_port: u16) -> String {
-    let trimmed = raw.trim();
-    if trimmed.contains(':') {
-        trimmed.to_string()
-    } else {
-        format!("{trimmed}:{default_port}")
     }
 }
 

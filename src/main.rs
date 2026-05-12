@@ -7,7 +7,12 @@ mod menu;
 mod module_output;
 mod scrcpy;
 
-use std::{fs, path::PathBuf};
+use std::{
+    fs,
+    io::{self, Write},
+    path::PathBuf,
+    process::Command,
+};
 
 use anyhow::{anyhow, bail, Context};
 use clap::Parser;
@@ -35,8 +40,7 @@ fn main() -> Result<()> {
             print_command_output(&output);
         }
         cli::Command::Connect { endpoint } => {
-            let output = adb::connect(&endpoint)?;
-            print_command_output(&output);
+            run_connect(endpoint)?;
         }
         cli::Command::Disconnect { serial } => {
             let output = adb::disconnect(&serial)?;
@@ -206,6 +210,143 @@ fn run_devices(as_json: bool) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn run_connect(endpoint: Option<String>) -> Result<()> {
+    if let Some(endpoint) = endpoint {
+        let output = adb::connect(&endpoint).with_context(|| {
+            format!(
+                "Failed to connect to `{endpoint}`. Verify the endpoint and ensure Wireless debugging is enabled."
+            )
+        })?;
+        print_command_output(&output);
+        return Ok(());
+    }
+
+    run_guided_wireless_connect()
+}
+
+fn run_guided_wireless_connect() -> Result<()> {
+    println!("Guided wireless ADB setup");
+
+    let pair_endpoint_input =
+        prompt_required_input("Pair endpoint (ip[:port], default port 37123)")?;
+    let pair_endpoint = adb::normalize_endpoint(&pair_endpoint_input, 37123);
+    let pairing_code = prompt_required_input("Pairing code")?;
+
+    print_pairing_qr_helper(&pair_endpoint, &pairing_code);
+    println!("Running: adb pair {pair_endpoint}");
+    let pair_output = adb::pair(&pair_endpoint, &pairing_code).with_context(|| {
+        format!(
+            "Pairing failed for `{pair_endpoint}`. Confirm the pair endpoint and code shown in Android Wireless debugging."
+        )
+    })?;
+    print_command_output(&pair_output);
+
+    let default_connect_endpoint = format!("{}:5555", endpoint_ip(&pair_endpoint));
+    let connect_prompt = format!("Connect endpoint (ip[:port]) [{default_connect_endpoint}]");
+    let connect_endpoint_input = prompt_with_default(&connect_prompt, &default_connect_endpoint)?;
+    let connect_endpoint = adb::normalize_endpoint(&connect_endpoint_input, 5555);
+
+    println!("Running: adb connect {connect_endpoint}");
+    let connect_output = adb::connect(&connect_endpoint).with_context(|| {
+        format!(
+            "Connect failed for `{connect_endpoint}`. Ensure the device stayed on the same network and Wireless debugging is still enabled."
+        )
+    })?;
+    print_command_output(&connect_output);
+    Ok(())
+}
+
+fn prompt_required_input(prompt: &str) -> Result<String> {
+    loop {
+        let Some(value) = prompt_line(prompt)? else {
+            bail!(
+                "Interactive input was closed. Re-run with `hypr-phone connect <ip:port>` for non-interactive use."
+            );
+        };
+
+        if value.trim().is_empty() {
+            eprintln!("Input cannot be empty.");
+            continue;
+        }
+
+        return Ok(value);
+    }
+}
+
+fn prompt_with_default(prompt: &str, default: &str) -> Result<String> {
+    let Some(value) = prompt_line(prompt)? else {
+        bail!(
+            "Interactive input was closed. Re-run with `hypr-phone connect <ip:port>` for non-interactive use."
+        );
+    };
+
+    if value.trim().is_empty() {
+        Ok(default.to_string())
+    } else {
+        Ok(value)
+    }
+}
+
+fn prompt_line(prompt: &str) -> Result<Option<String>> {
+    print!("{prompt}: ");
+    io::stdout()
+        .flush()
+        .context("failed to flush prompt to terminal")?;
+
+    let mut input = String::new();
+    let bytes_read = io::stdin()
+        .read_line(&mut input)
+        .context("failed to read interactive input")?;
+    if bytes_read == 0 {
+        return Ok(None);
+    }
+
+    Ok(Some(input.trim().to_string()))
+}
+
+fn endpoint_ip(endpoint: &str) -> &str {
+    endpoint
+        .split_once(':')
+        .map(|(ip, _)| ip)
+        .unwrap_or(endpoint)
+}
+
+fn print_pairing_qr_helper(pair_endpoint: &str, pairing_code: &str) {
+    let payload = format!("WIFI:T:ADB;S:{pair_endpoint};P:{pairing_code};;");
+    println!("Pairing QR payload: {payload}");
+
+    if which::which("qrencode").is_err() {
+        println!("(Tip: install `qrencode` to render this payload as a terminal QR helper.)");
+        return;
+    }
+
+    match Command::new("qrencode")
+        .args(["-t", "ANSIUTF8"])
+        .arg(&payload)
+        .output()
+    {
+        Ok(output) if output.status.success() => {
+            let rendered = String::from_utf8_lossy(&output.stdout);
+            if rendered.trim().is_empty() {
+                eprintln!("[warn] qrencode produced empty output. Use the payload shown above.");
+            } else {
+                println!("{rendered}");
+            }
+        }
+        Ok(output) => {
+            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            if stderr.is_empty() {
+                eprintln!("[warn] qrencode failed. Use the payload shown above.");
+            } else {
+                eprintln!("[warn] qrencode failed: {stderr}. Use the payload shown above.");
+            }
+        }
+        Err(err) => {
+            eprintln!("[warn] Failed to run qrencode: {err}. Use the payload shown above.");
+        }
+    }
 }
 
 fn print_command_output(output: &str) {
