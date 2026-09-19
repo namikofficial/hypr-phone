@@ -482,4 +482,69 @@ mod tests {
         assert_eq!(merged.len(), 1);
         assert!(merged[0].is_connected());
     }
+
+    #[test]
+    fn wireless_adb_serial_detection() {
+        // IP:port is wireless.
+        assert!(PhoneDevice::is_wireless_adb_serial("192.168.1.5:5555"));
+        assert!(PhoneDevice::is_wireless_adb_serial("[::1]:5555"));
+        // usb: prefix is not wireless.
+        assert!(!PhoneDevice::is_wireless_adb_serial("usb:1-1.4"));
+        // Plain serials are not wireless.
+        assert!(!PhoneDevice::is_wireless_adb_serial("ABCDEF"));
+        assert!(!PhoneDevice::is_wireless_adb_serial("emulator-5554"));
+    }
+
+    #[test]
+    fn stable_physical_id_uses_hardware_serial() {
+        // Clean hardware serial gets physical: prefix directly.
+        let id = compute_stable_physical_id("ABC123XYZ", Some("Pixel 8"));
+        assert!(id.starts_with("physical:"));
+        assert!(id.contains("ABC123XYZ"));
+
+        // Endpoint-like serials get hashed.
+        let id_ip = compute_stable_physical_id("192.168.1.5:5555", Some("Pixel 8"));
+        assert!(id_ip.starts_with("physical-"));
+        // Should NOT contain the endpoint.
+        assert!(!id_ip.contains("192.168"));
+    }
+
+    #[test]
+    fn enhance_with_hardware_serial_updates_identity() {
+        // Create a wireless device with endpoint-based ID.
+        let device = PhoneDevice::from_adb_listing(
+            "192.168.1.5:5555",
+            "device",
+            Some("Pixel 8".into()),
+            None,
+        );
+        assert!(device.is_wireless());
+        let original_id = device.id.clone();
+
+        // Enhance with hardware serial.
+        let enhanced = device.enhance_with_hardware_serial("ABCDEF12345");
+        assert_ne!(enhanced.id, original_id);
+        // The enhanced ID should use physical: format with hardware serial.
+        assert!(enhanced.id.starts_with("physical:"));
+        assert!(enhanced.id.contains("ABCDEF12345"));
+        // android_serial should be set.
+        assert_eq!(enhanced.android_serial.as_deref(), Some("ABCDEF12345"));
+    }
+
+    #[test]
+    fn enhance_does_nothing_for_usb_devices() {
+        let device = PhoneDevice::from_adb_listing(
+            "usb:1-1.4",
+            "device",
+            Some("Pixel 7".into()),
+            None,
+        );
+        assert!(!device.is_wireless());
+        let original_id = device.id.clone();
+
+        // Enhancement should not change USB device identity.
+        let enhanced = device.enhance_with_hardware_serial("SHOULD_NOT_CHANGE");
+        assert_eq!(enhanced.id, original_id);
+        assert!(enhanced.android_serial.is_none());
+    }
 }
