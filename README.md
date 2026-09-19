@@ -1,196 +1,241 @@
 # hypr-phone
 
-A Wayland-native Android companion for Hyprland.
+**Press Super+P. Your phone appears.**
 
-`hypr-phone` brings together ADB, scrcpy, KDE Connect, wl-clipboard, desktop notifications, and Hyprland window rules into one clean workflow.
+hypr-phone is a Hyprland-native Android presence layer. It discovers your
+Android device (USB or wireless), launches scrcpy into a dedicated special
+workspace, exposes contextual actions through rofi/wofi, and gives Waybar a
+stable status interface — all from a single CLI.
 
-Instead of manually running `adb`, pairing wireless devices, launching `scrcpy`, moving windows, writing Waybar modules, and creating rofi scripts, `hypr-phone` gives Hyprland users a single CLI-first Android control center.
+It does not replace scrcpy, KDE Connect, ADB, or Hyprland. It is the
+orchestration layer that makes them feel like one tool.
 
-It is not a replacement for scrcpy or KDE Connect. It is the missing native orchestration layer for Hyprland users.
+---
 
-## Why?
-
-Linux already has great Android tools, but they are fragmented:
-
-- `adb` for pairing, connect, shell, transfer, debugging
-- `scrcpy` for fast screen mirroring and control
-- `kdeconnect-cli` for desktop-device integration
-- `wl-clipboard` for Wayland clipboard flows
-- notification daemons (`notify-send`) for desktop feedback
-- `hyprctl` for workspace/window automation
-
-`hypr-phone` is the orchestration layer that unifies these tools for Hyprland users.
-
-## Features
-
-Current CLI includes v0.1 foundations plus major v0.2/v0.3 helpers:
-
-- Device listing + wireless pair/connect/reconnect (`devices`, `pair`, `connect`, `reconnect`)
-- Device aliases in stable config v1 (`[devices.aliases.<name>]`)
-- Mirroring profiles + Hyprland placement (`mirror`)
-- Screenshot / file transfer / APK install / shell helpers (`screenshot`, `push`, `pull`, `install-apk`, `shell`)
-- Clipboard send/receive bridge (`clipboard send`, `clipboard receive`)
-- KDE Connect bridge (`kde devices|battery|ring|notify|media`) with graceful fallback if `kdeconnect-cli` is missing
-- Waybar/Wayle-ready JSON state output (`module`)
-- Quick launcher menu for rofi/wofi (`menu`)
-- GUI/tray scaffolding + rule generation (`gui status`, `gui generate-rules`)
-
-> GUI remains scaffold-stage; CLI is still the primary workflow.
-
-## Install
-
-### Arch Linux dependencies
+## 60-second setup
 
 ```bash
+# Arch dependencies
 sudo pacman -S android-tools scrcpy wl-clipboard libnotify rofi
+
+# Optional
+sudo pacman -S kdeconnect wofi
+
+# Build
+cargo install --path .
+# or use ./scripts/install-global.sh
+
+# First run
+hypr-phone setup            # prints suggested Hyprland bindings + Waybar snippet
+hypr-phone config init      # write default config
+hypr-phone doctor           # verify environment
 ```
 
-Optional:
+Add these to your `hyprland.conf`:
+
+```ini
+bind = SUPER, P, exec, hypr-phone toggle
+bind = SUPER SHIFT, P, exec, hypr-phone menu
+bind = SUPER, A, exec, hypr-phone app
+bind = SUPER SHIFT, S, exec, hypr-phone screenshot
+```
+
+Pair a phone once:
+
+```yaml
+# Wireless debugging on Android (Developer options) shows
+#   IP address & Port  → use for pair
+#   Pairing code       → shown after tapping "Pair device with pairing code"
+hypr-phone device pair 192.168.1.20:37123 123456
+hypr-phone device connect 192.168.1.20:5555
+```
+
+From then on:
 
 ```bash
-sudo pacman -S kdeconnect
-sudo pacman -S wofi
+hypr-phone toggle   # SUPER+P — phone appears
 ```
 
-### Build
+---
+
+## Daily workflow
 
 ```bash
-git clone https://github.com/namikofficial/hypr-phone.git
-cd hypr-phone
-cargo build --release
+hypr-phone                  # contextual launcher (auto-detects state)
+hypr-phone toggle           # show/hide phone workspace + (re)launch mirror
+hypr-phone app              # open any Android app as a Hyprland window
+hypr-phone app whatsapp     # launch a specific package
+hypr-phone screenshot       # capture to ~/Pictures/hypr-phone/, notify
+hypr-phone record start     # record screen; stop later
+hypr-phone send ~/Downloads/file.pdf   # route via KDE Connect or adb push
+hypr-phone send https://example.com    # open URL on phone
+hypr-phone send "paste me"             # phone clipboard
+hypr-phone control home     # one of: home, back, recents, lock, wake,
+                            #        screen-off, volume-up, volume-down,
+                            #        mute, notifications, quick-settings, rotate
+hypr-phone status           # canonical status
+hypr-phone status --waybar  # Waybar JSON
+hypr-phone doctor           # thorough environment check
+hypr-phone doctor --json    # machine-readable diagnostic
 ```
 
-Install globally (user-local) in one command:
+### Contextual menu
+
+`hypr-phone` (no arguments) opens a rofi/wofi menu whose actions change
+based on the current state:
+
+**Phone connected:**
+
+```
+󰄜 Toggle phone
+󰀻 Open Android app…
+󰈔 Send (file / url / text)
+󰹑 Screenshot
+󰖯 Record screen
+󰋊 Device controls…
+󰋏 Clipboard sync
+󰂃 Battery (KDE Connect)
+󰂃 Find / ring phone
+󰒓 Doctor / diagnostics
+```
+
+**No phone connected:**
+
+```
+Connect phone
+Pair new phone
+Reconnect last phone
+Doctor / diagnostics
+Setup
+```
+
+### Apps as Hyprland windows
+
+`hypr-phone app` lists installed third-party apps, lets you fuzzy-pick one,
+and opens it on a virtual display using `scrcpy --new-display --start-app`.
+The window gets its own Hyprland title and a sensible placement.
 
 ```bash
-./scripts/install-global.sh
+hypr-phone app                   # picker
+hypr-phone app com.whatsapp      # specific package
 ```
 
-The installer runs `cargo install --path . --force`, then creates/updates:
+Requires `scrcpy` ≥ 2.0 (built-in `--new-display`/`--start-app`).
 
-```txt
-~/.local/bin/hypr-phone -> ${CARGO_HOME:-$HOME/.cargo}/bin/hypr-phone
-```
+---
 
-If `hypr-phone` is not found in new terminals, ensure your shell PATH includes local bins:
-
-```bash
-export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
-```
-
-See [docs/install.md](docs/install.md) for full setup and first-run checks.
-
-## Usage
-
-Initialize config and check environment:
-
-```bash
-hypr-phone config init
-hypr-phone doctor
-```
-
-Core command set:
-
-```bash
-hypr-phone doctor
-hypr-phone devices [--json]
-hypr-phone pair <ip:port> <pairing-code>
-hypr-phone connect [ip:port]
-hypr-phone reconnect [alias|ip:port]
-hypr-phone disconnect <serial>
-hypr-phone mirror [serial] --profile default
-hypr-phone screenshot [alias|serial] [output.png]
-hypr-phone push <local> <remote> [alias|serial]
-hypr-phone pull <remote> <local> [alias|serial]
-hypr-phone install-apk <app.apk> [alias|serial] [--reinstall]
-hypr-phone shell [--target alias|serial] <command...>
-hypr-phone clipboard send [--target alias|serial] [--text "..."]
-hypr-phone clipboard receive [--target alias|serial]
-hypr-phone kde devices
-hypr-phone kde battery [--target alias|kde-id]
-hypr-phone kde ring [--target alias|kde-id]
-hypr-phone kde notify [--target alias|kde-id] --title "..." --body "..."
-hypr-phone kde media [--target alias|kde-id] <play|pause|play-pause|stop|next|previous>
-hypr-phone module
-hypr-phone menu
-hypr-phone config path|init|status|migrate
-hypr-phone gui status|generate-rules
-```
-
-See [docs/usage.md](docs/usage.md) for detailed examples.
-
-Tip: `hypr-phone connect` without an endpoint launches a guided pairing/connect flow. If `qrencode` is installed, it also prints a terminal QR helper payload during pairing.
-
-## Hyprland Integration
-
-Apply the example rules now:
-
-```bash
-mkdir -p ~/.config/hypr
-cp ./examples/hyprland.conf ~/.config/hypr/hypr-phone.conf
-grep -qxF 'source = ~/.config/hypr/hypr-phone.conf' ~/.config/hypr/hyprland.conf || echo 'source = ~/.config/hypr/hypr-phone.conf' >> ~/.config/hypr/hyprland.conf
-hyprctl reload
-```
-
-Rules file: [examples/hyprland.conf](examples/hyprland.conf)
-
-## Waybar/Wayle Integration
-
-`hypr-phone module` outputs compact JSON for status modules:
+## Waybar integration
 
 ```json
 {
-  "text": "󰄜 Pixel",
-  "tooltip": "Android device connected: Pixel\nADB: 192.168.1.23:5555",
-  "class": "connected"
+    "custom/phone": {
+        "exec": "hypr-phone module",
+        "format": "{}",
+        "on-click": "hypr-phone toggle",
+        "on-click-right": "hypr-phone menu",
+        "interval": 5
+    }
 }
 ```
 
-- Waybar example: [examples/waybar-module.json](examples/waybar-module.json)
-- Wayle notes: [examples/wayle-module.md](examples/wayle-module.md)
+The module outputs JSON with these classes:
+
+- `connected` — phone reachable
+- `disconnected` — no device
+- `connecting` — reconnect in progress
+- `mirroring` — scrcpy running
+- `error` — failure
+
+Tooltip contains device name, transport, battery (if KDE Connect is
+paired), and mirror state.
+
+---
+
+## Profiles
+
+scrcpy is exposed as named profiles in `~/.config/hypr-phone/config.toml`:
+
+| Profile        | Use                                       |
+|----------------|-------------------------------------------|
+| `default`      | Everyday phone control                    |
+| `low_latency`  | Responsive screen-on-device               |
+| `presentation` | High-quality, show touches                |
+| `desk`         | Phone off, mouse + keyboard optimized     |
+| `app`          | Virtual display for an Android app        |
+| `record`       | Recording defaults                        |
+
+Customize or add new profiles in the config:
+
+```toml
+[mirror.profiles.gaming]
+video_bit_rate = "12M"
+max_fps = 120
+audio = false
+turn_screen_off = true
+args = ["--no-control"]   # any extra raw scrcpy flags
+```
+
+Switch via `--profile`:
+
+```bash
+hypr-phone toggle --profile desk
+hypr-phone app whatsapp --profile app
+```
+
+---
+
+## Architecture
+
+```
+src/
+  domain/      PhoneDevice, ScrcpySession, PhoneStatus, errors
+  services/
+    adb/       discovery (mDNS, USB, wireless) + ops (push, shell, screenshot, clipboard)
+    hyprland/  runtime IPC, no windowrulev2 generation
+    scrcpy/    profile resolution, argument construction
+    kdeconnect/  battery, ring, share
+    clipboard/ wl-copy/wl-paste
+    notifications/ notify-send
+  commands/    user-facing verbs (toggle, status, app, send, record, …)
+  ui/          waybar JSON, rofi/wofi launcher
+  config/      TOML v2 schema with v1→v2 migration
+  cli.rs       command parser
+  main.rs      thin dispatcher (~150 lines)
+```
+
+**Key design choices:**
+
+- **Device identity ≠ transport.** A `PhoneDevice` has a stable id and any
+  number of `Transport`s (USB, Wi-Fi, mDNS). Endpoints can change without
+  breaking device selection.
+- **Runtime Hyprland placement.** No static `windowrulev2` rules;
+  `hyprctl dispatch` controls the window placement at runtime.
+- **Canonical `PhoneStatus`.** One model consumed by CLI output, menu,
+  Waybar — no UI re-derives truth.
+- **Capability detection.** `doctor` parses scrcpy `--help` to determine
+  which features work in your installed version.
+
+---
+
+## Security
+
+- All external commands use argv arrays — no shell injection.
+- App package names are validated against `<reverse.dns>` shape.
+- No network daemon. The future `hypr-phoned` will use a local-user
+  Unix socket only.
+- No telemetry. No cloud. No accounts.
+
+---
 
 ## Roadmap
 
-### v0.2
+- [x] P0: device model, toggle, contextual menu, doctor
+- [x] P1: app launcher, intelligent send, recording, Waybar, setup
+- [ ] P2: optional `hypr-phoned` for event-driven device tracking
+- [ ] P2: shell completion + man page
 
-- ✅ Device aliases
-- ✅ Better wireless reconnect
-- ✅ Screenshot command
-- ✅ File push/pull
-- ✅ APK install
-- ✅ ADB shell shortcut
-- ✅ Clipboard send/receive helpers
-
-### v0.3
-
-- ✅ KDE Connect bridge (graceful fallback when missing)
-- ✅ Notification sync helpers (`kde notify`)
-- ✅ Battery status (`kde battery`)
-- ✅ Ring/find phone action (`kde ring`)
-- ✅ Media control (`kde media`)
-
-### v0.4
-
-- 🚧 Tauri GUI groundwork (`gui status`)
-- 🚧 Device card/pairing/profile scaffolding in stable config
-- ✅ Hyprland rule generator (`gui generate-rules`)
-
-### v1.0
-
-- 🚧 Stable config format path (`config_version = 1`, `config status`, `config migrate`)
-- 🚧 Polished GUI + tray/status
-- ⏳ AUR + Nix + distro packaging
-- ⏳ Dedicated docs site
+See [docs/](docs/) for detailed usage, troubleshooting, and profiles.
 
 ## Contributing
 
-Contributions are welcome:
-
-1. Open an issue with your use-case/problem.
-2. Keep changes focused and testable.
-3. Prefer practical CLI UX improvements.
-4. Include docs/examples updates when behavior changes.
-
-## Showcase Blurb
-
-Built `hypr-phone`, an open-source Wayland-native Android companion for Hyprland that unifies ADB device management, wireless pairing, scrcpy screen mirroring, special workspace integration, status module output, and rofi/wofi quick actions into a polished Linux workflow.
+See [CONTRIBUTING.md](CONTRIBUTING.md).
