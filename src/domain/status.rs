@@ -163,13 +163,17 @@ pub struct WaybarStatus {
 
 impl From<&PhoneStatus> for WaybarStatus {
     fn from(s: &PhoneStatus) -> Self {
-        let (text, icon, alt) = match (&s.device, s.presence) {
+        let (text, _icon, alt) = match (&s.device, s.presence) {
             (Some(d), _) => (
                 format!("\u{e1f8} {}", truncate(&d.name, 18)),
                 "\u{e1f8}",
                 "connected",
             ),
-            (None, PresenceStatus::Connecting) => ("\u{f0213} Connecting…".to_string(), "\u{f0213}", "connecting"),
+            (None, PresenceStatus::Connecting) => (
+                "\u{f0213} Connecting…".to_string(),
+                "\u{f0213}",
+                "connecting",
+            ),
             (None, _) => ("\u{e1f7} No phone".to_string(), "\u{e1f7}", "disconnected"),
         };
 
@@ -191,7 +195,11 @@ impl From<&PhoneStatus> for WaybarStatus {
         if let Some(kde) = &s.kdeconnect {
             tooltip.push_str(&format!(
                 "KDE Connect: {}{}\n",
-                if kde.reachable { "reachable" } else { "unreachable" },
+                if kde.reachable {
+                    "reachable"
+                } else {
+                    "unreachable"
+                },
                 if kde.paired { " (paired)" } else { "" }
             ));
         }
@@ -239,12 +247,7 @@ mod tests {
     use super::*;
 
     fn sample_device() -> PhoneDevice {
-        PhoneDevice::from_adb_listing(
-            "192.168.1.5:5555",
-            "device",
-            Some("Pixel 8".into()),
-            None,
-        )
+        PhoneDevice::from_adb_listing("192.168.1.5:5555", "device", Some("Pixel 8".into()), None)
     }
 
     #[test]

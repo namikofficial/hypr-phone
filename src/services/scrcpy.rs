@@ -112,7 +112,7 @@ pub fn build_window_title(
     } else {
         prefix.trim()
     };
-    let sanitized_serial = serial.replace(':', "_").replace(' ', "_");
+    let sanitized_serial = serial.replace([':', ' '], "_");
     match app {
         Some(pkg) => format!("{normalized_prefix}:app:{pkg}:{sanitized_serial}"),
         None => format!("{normalized_prefix}:{sanitized_serial}:{profile_name}"),
@@ -121,9 +121,10 @@ pub fn build_window_title(
 
 /// Build the scrcpy argument list for a resolved mirror.
 pub fn build_scrcpy_args(resolved: &ResolvedMirror) -> Vec<String> {
-    let mut args = resolved
-        .profile
-        .to_args(Some(&resolved.device_serial), &resolved.window_title, None);
+    let mut args =
+        resolved
+            .profile
+            .to_args(Some(&resolved.device_serial), &resolved.window_title, None);
     args.extend(resolved.extra_args.iter().cloned());
     args
 }
@@ -135,9 +136,11 @@ pub fn build_scrcpy_app_args(
     force_stop: bool,
     display_size: Option<&str>,
 ) -> Vec<String> {
-    let mut args = resolved
-        .profile
-        .to_args(Some(&resolved.device_serial), &resolved.window_title, display_size);
+    let mut args = resolved.profile.to_args(
+        Some(&resolved.device_serial),
+        &resolved.window_title,
+        display_size,
+    );
     let mut start = String::from("--start-app=");
     if force_stop {
         start.push('+');
@@ -150,9 +153,10 @@ pub fn build_scrcpy_app_args(
 
 /// Build the scrcpy argument list for a recording launch.
 pub fn build_scrcpy_record_args(resolved: &ResolvedMirror, output: &str) -> Vec<String> {
-    let mut args = resolved
-        .profile
-        .to_args(Some(&resolved.device_serial), &resolved.window_title, None);
+    let mut args =
+        resolved
+            .profile
+            .to_args(Some(&resolved.device_serial), &resolved.window_title, None);
     args.push(format!("--record={output}"));
     args.extend(resolved.extra_args.iter().cloned());
     args
@@ -167,21 +171,27 @@ pub fn scrcpy_path() -> Result<std::path::PathBuf> {
 }
 
 /// Probe installed scrcpy for capability detection (used by doctor).
+/// Results are cached for the lifetime of the process to avoid repeated subprocess calls.
 pub fn detect_scrcpy_capabilities() -> ScrcpyCapabilities {
-    let mut caps = ScrcpyCapabilities::default();
-    let Ok(help) = scrcpy_help() else {
-        return caps;
-    };
-    caps.version = extract_version(&help);
-    caps.virtual_display = help.contains("--new-display");
-    caps.start_app = help.contains("--start-app=");
-    caps.flex_display = help.contains("--flex-display");
-    caps.recording = help.contains("--record=");
-    caps.audio = help.contains("--audio-source=");
-    caps.camera = help.contains("--video-source=camera") || help.contains("--camera-size=");
-    caps.otg = help.contains("--otg");
-    caps.hid = help.contains("--hid-keyboard") || help.contains("--hid-mouse");
-    caps
+    static CACHED: std::sync::OnceLock<ScrcpyCapabilities> = std::sync::OnceLock::new();
+    CACHED
+        .get_or_init(|| {
+            let mut caps = ScrcpyCapabilities::default();
+            let Ok(help) = scrcpy_help() else {
+                return caps;
+            };
+            caps.version = extract_version(&help);
+            caps.virtual_display = help.contains("--new-display");
+            caps.start_app = help.contains("--start-app=");
+            caps.flex_display = help.contains("--flex-display");
+            caps.recording = help.contains("--record=");
+            caps.audio = help.contains("--audio-source=");
+            caps.camera = help.contains("--video-source=camera") || help.contains("--camera-size=");
+            caps.otg = help.contains("--otg");
+            caps.hid = help.contains("--hid-keyboard") || help.contains("--hid-mouse");
+            caps
+        })
+        .clone()
 }
 
 #[derive(Debug, Clone, Default)]
@@ -206,11 +216,7 @@ impl ScrcpyCapabilities {
         if let Some(v) = &self.version {
             push(&mut s, "version", &toml_quote(v));
         }
-        push(
-            &mut s,
-            "virtual_display",
-            &self.virtual_display.to_string(),
-        );
+        push(&mut s, "virtual_display", &self.virtual_display.to_string());
         push(&mut s, "start_app", &self.start_app.to_string());
         push(&mut s, "flex_display", &self.flex_display.to_string());
         push(&mut s, "recording", &self.recording.to_string());
@@ -246,9 +252,7 @@ fn scrcpy_help() -> Result<String> {
 }
 
 /// Spawn the scrcpy process for a resolved mirror.
-pub fn spawn_mirror(
-    resolved: &ResolvedMirror,
-) -> Result<std::process::Child> {
+pub fn spawn_mirror(resolved: &ResolvedMirror) -> Result<std::process::Child> {
     let args = build_scrcpy_args(resolved);
     let bin = scrcpy_path()?;
     let mut cmd = Command::new(bin);
@@ -360,10 +364,12 @@ mod tests {
 
     #[test]
     fn to_args_honors_profile_settings() {
-        let mut profile = ScrcpyProfile::default();
-        profile.audio = false;
-        profile.turn_screen_off = true;
-        profile.max_fps = Some(30);
+        let profile = ScrcpyProfile {
+            audio: false,
+            turn_screen_off: true,
+            max_fps: Some(30),
+            ..ScrcpyProfile::default()
+        };
         let args = profile.to_args(Some("ABC"), "title", None);
         assert!(args.windows(2).any(|p| p == ["--serial", "ABC"]));
         assert!(args.contains(&"--no-audio".to_string()));

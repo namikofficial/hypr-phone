@@ -75,7 +75,9 @@ pub fn start(output: Option<String>) -> Result<()> {
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null());
-    let child = cmd.spawn().map_err(|e| anyhow::anyhow!("failed to spawn scrcpy: {e}"))?;
+    let child = cmd
+        .spawn()
+        .map_err(|e| anyhow::anyhow!("failed to spawn scrcpy: {e}"))?;
 
     // Persist the session to the state file (P2 daemon will replace this).
     let session = scrcpy::describe_session(&resolved, Some(child.id()), None);
@@ -102,7 +104,9 @@ pub fn stop() -> Result<()> {
     }
     let raw = fs::read_to_string(&path)?;
     let session: ScrcpySession = serde_json::from_str(&raw)?;
-    let pid = session.pid.ok_or_else(|| anyhow::anyhow!("session has no pid"))?;
+    let pid = session
+        .pid
+        .ok_or_else(|| anyhow::anyhow!("session has no pid"))?;
     let out = session
         .recording
         .as_ref()

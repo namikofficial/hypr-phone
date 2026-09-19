@@ -1,18 +1,17 @@
 //! ADB discovery — listing devices, parsing output, mDNS hooks.
 
 use std::{
-    net::{IpAddr, Ipv4Addr},
+    net::IpAddr,
     process::{Command, Stdio},
     thread,
     time::{Duration, Instant},
 };
 
 use anyhow::{anyhow, bail, Context, Result};
-use serde::{Deserialize, Serialize};
 
-use crate::domain::device::{
-    parse_endpoint, AdbState, DeviceCapabilities, PhoneDevice, Transport,
-};
+#[cfg(test)]
+use crate::domain::device::AdbState;
+use crate::domain::device::{parse_endpoint, PhoneDevice, Transport};
 
 /// Wrapper that runs `adb` and captures results. Implemented for
 /// `RealAdb` (subprocess) and used in tests via mocking at the PATH level.
@@ -90,7 +89,9 @@ pub fn parse_devices_l_output(output: &str) -> Vec<PhoneDevice> {
                         .filter(|v| !v.is_empty());
                 }
             }
-            Some(PhoneDevice::from_adb_listing(&serial, &state, model, product))
+            Some(PhoneDevice::from_adb_listing(
+                &serial, &state, model, product,
+            ))
         })
         .collect()
 }
@@ -150,7 +151,9 @@ impl AdbDiscovery {
                             stderr.trim()
                         );
                     }
-                    return Ok(parse_devices_l_output(&stdout));
+                    let devices = parse_devices_l_output(&stdout);
+                    // Enhance wireless devices with hardware serial for stable identity.
+                    return Ok(self.enhance_wireless_devices(devices));
                 }
                 None if Instant::now() >= deadline => {
                     let _ = child.kill();
@@ -160,6 +163,33 @@ impl AdbDiscovery {
                 None => thread::sleep(Duration::from_millis(20)),
             }
         }
+    }
+
+    /// For wireless ADB devices, fetch the hardware serial and recompute
+    /// stable identity so that endpoint changes don't create new device IDs.
+    fn enhance_wireless_devices(&self, devices: Vec<PhoneDevice>) -> Vec<PhoneDevice> {
+        devices
+            .into_iter()
+            .map(|mut d| {
+                // Only enhance wireless devices that have an endpoint serial.
+                if d.is_wireless() {
+                    if let Some(serial) = d.adb_serial.as_deref() {
+                        // Use get-serialno which returns ro.serialno for the device.
+                        let hw_serial = self
+                            .runner
+                            .run(&["-s", serial, "get-serialno"])
+                            .ok()
+                            .map(|s| s.trim().to_string())
+                            .filter(|s| !s.is_empty() && !s.contains('\n'));
+
+                        if let Some(hw) = hw_serial {
+                            d = d.enhance_with_hardware_serial(&hw);
+                        }
+                    }
+                }
+                d
+            })
+            .collect()
     }
 
     /// Best-effort mDNS discovery: `adb mdns services` (Android 11+/ADB
@@ -181,12 +211,8 @@ impl AdbDiscovery {
                     port: addr.port(),
                 };
                 let model = model_hint.clone();
-                let device = PhoneDevice::from_adb_listing(
-                    &addr.to_string(),
-                    "unknown",
-                    model,
-                    None,
-                );
+                let device =
+                    PhoneDevice::from_adb_listing(&addr.to_string(), "unknown", model, None);
                 let mut device = device;
                 device.transport = transport;
                 device.capabilities.mdns = true;
@@ -206,7 +232,9 @@ impl AdbDiscovery {
         let mut combined = self.devices_with_timeout(opts.timeout)?;
         if opts.include_mdns {
             if let Ok(mdns) = self.mdns_discover(opts.timeout) {
-                combined.extend(mdns);
+                // Enhance mDNS-discovered wireless devices too.
+                let enhanced = self.enhance_wireless_devices(mdns);
+                combined.extend(enhanced);
             }
         }
         Ok(crate::domain::device::dedupe_by_identity(combined))
@@ -244,9 +272,9 @@ pub fn disconnect(serial: &str) -> Result<String> {
 
 /// Validate `ip:port` format.
 pub fn validate_ip_port(endpoint: &str) -> Result<()> {
-    let (ip, port) = endpoint.split_once(':').ok_or_else(|| {
-        anyhow!("Invalid endpoint `{endpoint}`. Expected format `<ip:port>`.")
-    })?;
+    let (ip, port) = endpoint
+        .split_once(':')
+        .ok_or_else(|| anyhow!("Invalid endpoint `{endpoint}`. Expected format `<ip:port>`."))?;
     let _ip: IpAddr = ip
         .parse()
         .with_context(|| format!("Invalid IP address `{ip}` in endpoint `{endpoint}`."))?;
@@ -292,7 +320,11 @@ pub fn detect_remote_identity(serial: Option<&str>) -> Result<PhoneDevice> {
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());
     let serial_str = serial.unwrap_or("device").to_string();
-    let state = if serial.is_some() { "device" } else { "unknown" };
+    let state = if serial.is_some() {
+        "device"
+    } else {
+        "unknown"
+    };
     let mut device = PhoneDevice::from_adb_listing(&serial_str, state, model.clone(), None);
     if let Some(model) = model {
         device.model = Some(model);
@@ -322,13 +354,22 @@ mod tests {
     fn parses_usb_serial() {
         let raw = "List of devices attached\nusb:1-1.4 device product:panther model:Pixel_7\n";
         let devices = parse_devices_l_output(raw);
-        assert_eq!(devices[0].transport.kind(), crate::domain::device::TransportKind::Usb);
+        assert_eq!(
+            devices[0].transport.kind(),
+            crate::domain::device::TransportKind::Usb
+        );
     }
 
     #[test]
     fn normalizes_endpoint() {
-        assert_eq!(normalize_endpoint("192.168.1.20", 5555), "192.168.1.20:5555");
-        assert_eq!(normalize_endpoint("192.168.1.20:1234", 5555), "192.168.1.20:1234");
+        assert_eq!(
+            normalize_endpoint("192.168.1.20", 5555),
+            "192.168.1.20:5555"
+        );
+        assert_eq!(
+            normalize_endpoint("192.168.1.20:1234", 5555),
+            "192.168.1.20:1234"
+        );
     }
 
     #[test]

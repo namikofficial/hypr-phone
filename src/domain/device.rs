@@ -185,13 +185,26 @@ pub struct PhoneDevice {
 }
 
 impl PhoneDevice {
+    /// Returns true if the given serial looks like an IP:port endpoint
+    /// (wireless ADB) rather than a hardware serial.
+    pub fn is_wireless_adb_serial(serial: &str) -> bool {
+        serial.contains(':') && !serial.starts_with("usb:") && parse_endpoint(serial).is_some()
+    }
+
     /// Construct a `PhoneDevice` from `adb devices -l` style output.
+    ///
+    /// For wireless ADB devices (endpoint-based serials), the serial is
+    /// NOT used for stable identity. The caller should call
+    /// `enhance_with_hardware_serial()` to fetch `ro.serialno` and
+    /// recompute the stable identity.
     pub fn from_adb_listing(
         serial: &str,
         state: &str,
         model: Option<String>,
         product: Option<String>,
     ) -> Self {
+        let is_wireless = Self::is_wireless_adb_serial(serial);
+
         let transport = if serial.starts_with("usb") || !serial.contains(':') {
             Transport::Usb
         } else if let Some(endpoint) = parse_endpoint(serial) {
@@ -203,10 +216,25 @@ impl PhoneDevice {
             Transport::Unknown
         };
 
-        let id = compute_device_id(
-            serial,
-            model.as_deref().or(product.as_deref()).unwrap_or(serial),
-        );
+        // For USB and non-IP serials, use serial directly for identity.
+        // For wireless (IP:port), we use a temporary ID based on the endpoint;
+        // enhance_with_hardware_serial() will recompute it with hardware serial.
+        let id = if is_wireless {
+            // Wireless: endpoint-based ID is temporary; hardware serial will fix it.
+            compute_device_id(
+                serial,
+                model
+                    .as_deref()
+                    .or(product.as_deref())
+                    .unwrap_or("wireless"),
+            )
+        } else {
+            // USB or stable serial: directly use for identity.
+            compute_device_id(
+                serial,
+                model.as_deref().or(product.as_deref()).unwrap_or(serial),
+            )
+        };
 
         Self {
             id,
@@ -216,6 +244,7 @@ impl PhoneDevice {
                 .unwrap_or_else(|| serial.to_string()),
             model,
             product,
+            // android_serial is set by enhance_with_hardware_serial() for wireless devices.
             android_serial: None,
             adb_serial: Some(serial.to_string()),
             transport,
@@ -228,17 +257,40 @@ impl PhoneDevice {
         }
     }
 
+    /// Enhance a wireless ADB device with its hardware serial from `ro.serialno`.
+    /// This recomputes the stable identity so that the device keeps the same
+    /// ID across endpoint changes (different IP, different port, reconnect).
+    ///
+    /// Returns a new PhoneDevice with updated `android_serial` and `id`.
+    pub fn enhance_with_hardware_serial(&self, hardware_serial: &str) -> Self {
+        if !self.is_wireless() {
+            // USB or stable serial — no change needed.
+            return self.clone();
+        }
+        let mut updated = self.clone();
+        updated.android_serial = Some(hardware_serial.to_string());
+        // Recompute stable identity from hardware serial + model.
+        updated.id = compute_stable_physical_id(
+            hardware_serial,
+            self.model.as_deref().or(self.product.as_deref()),
+        );
+        updated
+    }
+
+    /// Returns true if this device was discovered over wireless ADB.
+    pub fn is_wireless(&self) -> bool {
+        matches!(self.transport, Transport::Wifi { .. })
+    }
+
     pub fn is_connected(&self) -> bool {
         self.adb_state.is_connected()
     }
 
     /// Best endpoint string to use for `adb connect` retries.
     pub fn reconnect_endpoint(&self) -> Option<String> {
-        self.transport.endpoint_string().or_else(|| {
-            self.adb_serial
-                .clone()
-                .filter(|s| s.contains(':'))
-        })
+        self.transport
+            .endpoint_string()
+            .or_else(|| self.adb_serial.clone().filter(|s| s.contains(':')))
     }
 }
 
@@ -267,6 +319,29 @@ pub fn parse_endpoint(s: &str) -> Option<SocketAddr> {
 pub fn compute_device_id(serial: &str, model: &str) -> DeviceId {
     let combined = format!("{model}|{serial}");
     format!("dev-{:016x}", fnv1a_64(combined.as_bytes()))
+}
+
+/// Compute a stable physical device ID using the hardware serial.
+/// Format: `physical:<hardware-serial>` for direct hardware serials,
+/// or `physical:<hash>` when the serial contains unsafe characters.
+pub fn compute_stable_physical_id(hardware_serial: &str, model: Option<&str>) -> DeviceId {
+    // Hardware serials should be alphanumeric + safe chars. If it looks like
+    // an IP:port or contains weird chars, hash it for safety.
+    if hardware_serial.contains(':')
+        || hardware_serial.contains('/')
+        || hardware_serial.contains('\\')
+    {
+        // Looks like an endpoint or unsafe - hash it.
+        let combined = if let Some(m) = model {
+            format!("physical|{m}|{hardware_serial}")
+        } else {
+            format!("physical|{hardware_serial}")
+        };
+        format!("physical-{:016x}", fnv1a_64(combined.as_bytes()))
+    } else {
+        // Clean hardware serial - use it directly with physical: prefix.
+        format!("physical:{hardware_serial}")
+    }
 }
 
 fn fnv1a_64(bytes: &[u8]) -> u64 {
@@ -315,7 +390,7 @@ pub fn dedupe_by_identity(devices: Vec<PhoneDevice>) -> Vec<PhoneDevice> {
                 // Prefer the connected one.
                 if d.is_connected() && !existing.is_connected() {
                     *existing = d;
-                } else if !existing.model.is_some() && d.model.is_some() {
+                } else if existing.model.is_none() && d.model.is_some() {
                     existing.model = d.model.clone();
                 }
             }
@@ -383,7 +458,10 @@ mod tests {
             compute_device_id("abc", "Pixel 8"),
             compute_device_id("abc", "Pixel 8")
         );
-        assert_ne!(compute_device_id("abc", "Pixel 8"), compute_device_id("xyz", "Pixel 8"));
+        assert_ne!(
+            compute_device_id("abc", "Pixel 8"),
+            compute_device_id("xyz", "Pixel 8")
+        );
     }
 
     #[test]
@@ -397,8 +475,7 @@ mod tests {
     #[test]
     fn dedupe_prefers_connected_observation() {
         let offline = PhoneDevice::from_adb_listing("192.168.1.5:5555", "offline", None, None);
-        let mut connected =
-            PhoneDevice::from_adb_listing("192.168.1.5:5555", "device", None, None);
+        let mut connected = PhoneDevice::from_adb_listing("192.168.1.5:5555", "device", None, None);
         // Make them the same identity (will share serial+model → same id).
         connected.model = offline.model.clone();
         let merged = dedupe_by_identity(vec![offline.clone(), connected.clone()]);

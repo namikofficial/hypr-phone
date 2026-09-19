@@ -166,7 +166,9 @@ impl Config {
             // If we have exactly one device configured, use it.
             if self.devices.entries.len() == 1 {
                 let only = self.devices.entries.values().next()?;
-                only.adb_serial.clone().or_else(|| only.adb_endpoint.clone())
+                only.adb_serial
+                    .clone()
+                    .or_else(|| only.adb_endpoint.clone())
             } else {
                 None
             }
@@ -460,11 +462,7 @@ pub struct ReconnectConfig {
     pub auto_reconnect: bool,
 
     /// Migration-only: alias for v1's `recent_endpoints`.
-    #[serde(
-        rename = "recent_endpoints",
-        skip_serializing,
-        default
-    )]
+    #[serde(rename = "recent_endpoints", skip_serializing, default)]
     pub legacy_recent_endpoints: Vec<String>,
 }
 
@@ -574,20 +572,11 @@ impl Default for UiConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct PathsConfig {
     pub screenshots_dir: Option<PathBuf>,
     pub recordings_dir: Option<PathBuf>,
-}
-
-impl Default for PathsConfig {
-    fn default() -> Self {
-        Self {
-            screenshots_dir: None,
-            recordings_dir: None,
-        }
-    }
 }
 
 // Profile factories (mirror what v1 had; new profiles added: desk, app, record).
@@ -689,8 +678,15 @@ recent_endpoints = ["192.168.1.20:5555", "192.168.1.99:5555"]
         let parsed: Config = toml::from_str(raw).expect("parse v1");
         let migrated = parsed.migrated();
         assert_eq!(migrated.config_version, CURRENT_CONFIG_VERSION);
-        assert_eq!(migrated.mirror.device_serial.as_deref(), Some("legacy-device"));
-        let entry = migrated.devices.entries.get("pixel").expect("pixel alias migrated");
+        assert_eq!(
+            migrated.mirror.device_serial.as_deref(),
+            Some("legacy-device")
+        );
+        let entry = migrated
+            .devices
+            .entries
+            .get("pixel")
+            .expect("pixel alias migrated");
         assert_eq!(entry.adb_serial.as_deref(), Some("ABC"));
         assert_eq!(entry.adb_endpoint.as_deref(), Some("192.168.1.20:5555"));
         assert_eq!(entry.kdeconnect_id.as_deref(), Some("kde-pixel"));
@@ -748,9 +744,12 @@ recent_endpoints = ["192.168.1.20:5555", "192.168.1.99:5555"]
             cfg.resolve_wireless_endpoint(None).as_deref(),
             Some("10.0.0.6:5555")
         );
-        assert!(cfg.resolve_wireless_endpoint(Some("unknown-alias")).is_none());
+        assert!(cfg
+            .resolve_wireless_endpoint(Some("unknown-alias"))
+            .is_none());
         assert_eq!(
-            cfg.resolve_wireless_endpoint(Some("172.16.0.5:5555")).as_deref(),
+            cfg.resolve_wireless_endpoint(Some("172.16.0.5:5555"))
+                .as_deref(),
             Some("172.16.0.5:5555")
         );
     }

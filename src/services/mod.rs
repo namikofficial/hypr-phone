@@ -7,3 +7,4 @@ pub mod hyprland;
 pub mod kdeconnect;
 pub mod notifications;
 pub mod scrcpy;
+pub mod session;

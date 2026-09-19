@@ -1,7 +1,5 @@
 //! Scrcpy session tracking and lifecycle.
 
-use std::time::Instant;
-
 use serde::{Deserialize, Serialize};
 
 /// A single scrcpy process launched by Hypr Phone.
@@ -36,7 +34,7 @@ impl ScrcpySession {
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_secs())
-        .unwrap_or(0)
+            .unwrap_or(0)
     }
 
     pub fn is_record_running(&self) -> bool {
@@ -44,8 +42,8 @@ impl ScrcpySession {
     }
 
     pub fn age(&self) -> std::time::Duration {
-        let started = std::time::UNIX_EPOCH
-            + std::time::Duration::from_secs(self.started_at_unix_secs);
+        let started =
+            std::time::UNIX_EPOCH + std::time::Duration::from_secs(self.started_at_unix_secs);
         let now = std::time::SystemTime::now();
         now.duration_since(started).unwrap_or_default()
     }
@@ -91,7 +89,9 @@ impl ScrcpySessionManager {
     }
 
     pub fn any_running_for_serial(&self, serial: &str) -> bool {
-        self.sessions.iter().any(|s| s.serial == serial && s.pid.is_some())
+        self.sessions
+            .iter()
+            .any(|s| s.serial == serial && s.pid.is_some())
     }
 
     pub fn active_recording_for_serial(&self, serial: &str) -> Option<&RecordingInfo> {

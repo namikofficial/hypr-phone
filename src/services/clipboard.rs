@@ -9,9 +9,7 @@ pub fn read() -> Result<String> {
     let output = Command::new("wl-paste")
         .args(["--no-newline"])
         .output()
-        .map_err(|_| {
-            anyhow::anyhow!("`wl-paste` is not available. Install `wl-clipboard`.")
-        })?;
+        .map_err(|_| anyhow::anyhow!("`wl-paste` is not available. Install `wl-clipboard`."))?;
     if !output.status.success() {
         bail!(
             "`wl-paste` exited {}: {}",

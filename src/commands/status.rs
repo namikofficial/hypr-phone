@@ -6,6 +6,7 @@ use crate::services::adb::AdbDiscovery;
 use crate::services::hyprland;
 use crate::services::kdeconnect;
 use crate::services::scrcpy::detect_scrcpy_capabilities;
+use crate::services::session::bridge as session;
 use crate::ui::waybar;
 use anyhow::Result;
 
@@ -20,11 +21,31 @@ pub fn run(json: bool, waybar_flag: bool) -> Result<()> {
         status = status.with_device(device);
     }
 
-    // Mirror session: read from in-memory registry if daemon is running
-    // (CLI fallback: nothing for now, daemon-planned P2).
-    status.mirror = None;
+    // Mirror session: read from session bridge (XDG_RUNTIME_DIR-based
+    // cross-invocation state until hypr-phoned provides authoritative state).
+    if let Some(serial) = status.transport.as_ref().and_then(|t| t.endpoint.as_ref()) {
+        // Try to find session by the device serial.
+        if let Ok(Some(sess)) = session::find_session_by_serial(serial) {
+            if session::validate_session(&sess) {
+                status.mirror = Some(crate::domain::status::MirrorStatus {
+                    running: true,
+                    pid: sess.pid,
+                    profile: Some(sess.profile),
+                    display_id: sess.display_id,
+                    on_special_workspace: hyprland::is_window_visible_on_workspace(
+                        &sess.window_title,
+                        &config.mirror.hyprland.workspace,
+                    )
+                    .unwrap_or(false),
+                });
+            } else {
+                // Session is stale - clean it up.
+                let _ = session::remove_session(&sess.id);
+            }
+        }
+    }
 
-    // Runtime capabilities.
+    // Runtime capabilities (cached for the lifetime of the process).
     populate_capabilities(&mut status);
 
     if json {
@@ -130,14 +151,12 @@ fn _kde_optional_status(target: Option<&str>) -> Option<crate::domain::status::K
                     reachable: true,
                     device_id: d.id.clone(),
                 })
-            } else if let Some(d) = devices.first() {
-                Some(crate::domain::status::KdeStatus {
+            } else {
+                devices.first().map(|d| crate::domain::status::KdeStatus {
                     paired: true,
                     reachable: true,
                     device_id: d.id.clone(),
                 })
-            } else {
-                None
             }
         }
         Err(_) => None,

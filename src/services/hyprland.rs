@@ -138,16 +138,12 @@ pub fn query(subcmd: &str, args: &[&str]) -> Result<String> {
 
 /// Check whether Hyprland is available in the current session.
 pub fn hyprland_available() -> bool {
-    which::which("hyprctl").is_ok()
-        && std::env::var("HYPRLAND_INSTANCE_SIGNATURE").is_ok()
+    which::which("hyprctl").is_ok() && std::env::var("HYPRLAND_INSTANCE_SIGNATURE").is_ok()
 }
 
 /// Place a window matching `window_title` into the configured workspace,
 /// float + size + center. Idempotent and retry-aware.
-pub fn place_window(
-    window_title: &str,
-    placement: &HyprlandPlacementConfig,
-) -> Result<()> {
+pub fn place_window(window_title: &str, placement: &HyprlandPlacementConfig) -> Result<()> {
     if !placement.enabled {
         return Ok(());
     }
@@ -180,7 +176,9 @@ pub fn place_window(
 
 fn try_place_once(selector: &str, placement: &HyprlandPlacementConfig) -> Result<()> {
     dispatch(DispatchAction::FocusWindow(selector))?;
-    dispatch(DispatchAction::MovetoWorkspace(placement.workspace.as_str()))?;
+    dispatch(DispatchAction::MovetoWorkspace(
+        placement.workspace.as_str(),
+    ))?;
     dispatch(DispatchAction::ToggleFloating)?;
     if placement.width > 0 && placement.height > 0 {
         dispatch(DispatchAction::ResizeActiveExact(
@@ -209,6 +207,42 @@ pub fn move_active_to_special_workspace(name: &str) -> Result<()> {
     dispatch(DispatchAction::MoveToWorkspaceSilent(name))
 }
 
+/// Check if a window matching `title_pattern` is currently visible on the
+/// given workspace. Returns Ok(true) if visible, Ok(false) if not found.
+pub fn is_window_visible_on_workspace(title_pattern: &str, _workspace: &str) -> Result<bool> {
+    // Full implementation would check the specific workspace's client list.
+    // For now, check if the window exists in any client list.
+    match query("clients", &[]) {
+        Ok(clients) => {
+            // Look for the window title in the clients output.
+            Ok(clients.contains(title_pattern))
+        }
+        Err(_) => Ok(false),
+    }
+}
+
+/// Wait for a window matching `title_pattern` to appear, with timeout.
+/// Returns Ok(()) if window found within timeout, Err otherwise.
+pub fn wait_for_window_with_timeout(title_pattern: &str, timeout_ms: u64) -> Result<()> {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_millis(timeout_ms.max(1));
+    let interval = std::time::Duration::from_millis(100);
+
+    while std::time::Instant::now() <= deadline {
+        if let Ok(clients) = query("clients", &[]) {
+            if clients.contains(title_pattern) {
+                return Ok(());
+            }
+        }
+        std::thread::sleep(interval);
+    }
+
+    Err(anyhow!(
+        "window '{}' not found within {}ms",
+        title_pattern,
+        timeout_ms
+    ))
+}
+
 fn escape_regex(raw: &str) -> String {
     let mut out = String::with_capacity(raw.len());
     for ch in raw.chars() {
@@ -234,7 +268,10 @@ mod tests {
         let a = DispatchAction::MoveToWorkspaceSilent("special:phone");
         assert_eq!(
             a.args(),
-            vec!["movetoworkspacesilent".to_string(), "special:phone".to_string()]
+            vec![
+                "movetoworkspacesilent".to_string(),
+                "special:phone".to_string()
+            ]
         );
         let a = DispatchAction::ResizeActiveExact(420, 900);
         assert_eq!(

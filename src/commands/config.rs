@@ -1,9 +1,6 @@
 //! `hypr-phone config` subcommands: path, init, status, migrate.
 
-use std::{
-    fs,
-    path::PathBuf,
-};
+use std::{fs, path::PathBuf};
 
 use anyhow::{anyhow, Context, Result};
 
@@ -39,8 +36,7 @@ fn init() -> Result<()> {
             .with_context(|| format!("failed to create {}", parent.display()))?;
     }
     let template = Config::default().to_toml_string()?;
-    fs::write(&path, template)
-        .with_context(|| format!("failed to write {}", path.display()))?;
+    fs::write(&path, template).with_context(|| format!("failed to write {}", path.display()))?;
     println!("Initialized config at {}", path.display());
     Ok(())
 }
@@ -51,10 +47,17 @@ fn status() -> Result<()> {
     println!("current_version = {CURRENT_CONFIG_VERSION}");
     println!(
         "migration_needed = {}",
-        if cfg.is_current_version() { "no" } else { "yes" }
+        if cfg.is_current_version() {
+            "no"
+        } else {
+            "yes"
+        }
     );
     println!("legacy_version = {LEGACY_CONFIG_VERSION}");
-    println!("default_alias = {}", cfg.mirror.default_alias.as_deref().unwrap_or("(none)"));
+    println!(
+        "default_alias = {}",
+        cfg.mirror.default_alias.as_deref().unwrap_or("(none)")
+    );
     println!("default_profile = {}", cfg.mirror.profile);
     println!("aliases = {}", cfg.devices.entries.len());
     println!("known_endpoints = {}", cfg.reconnect.known_endpoints.len());

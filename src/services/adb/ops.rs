@@ -5,9 +5,8 @@
 
 use std::{
     fs,
-    io::Write,
     path::Path,
-    process::{Command, Stdio},
+    process::Command,
 };
 
 use anyhow::{bail, Context, Result};
@@ -16,9 +15,7 @@ use anyhow::{bail, Context, Result};
 
 pub fn adb_path() -> Result<std::path::PathBuf> {
     which::which("adb").map_err(|_| {
-        anyhow::anyhow!(
-            "Missing dependency `adb` in PATH. Install Android platform-tools."
-        )
+        anyhow::anyhow!("Missing dependency `adb` in PATH. Install Android platform-tools.")
     })
 }
 
@@ -97,7 +94,16 @@ pub fn send_clipboard(serial: Option<&str>, text: &str) -> Result<String> {
         bail!("clipboard text cannot be empty");
     }
     let quoted = quote_posix(text);
-    run_adb_with_serial_owned(serial, &["shell".into(), "cmd".into(), "clipboard".into(), "set-text".into(), quoted])
+    run_adb_with_serial_owned(
+        serial,
+        &[
+            "shell".into(),
+            "cmd".into(),
+            "clipboard".into(),
+            "set-text".into(),
+            quoted,
+        ],
+    )
 }
 
 /// Read the device clipboard via `cmd clipboard get-text`.
@@ -152,13 +158,7 @@ pub fn keyevent(serial: Option<&str>, key_code: &str) -> Result<String> {
 pub fn tap(serial: Option<&str>, x: u32, y: u32) -> Result<String> {
     run_adb_with_serial(
         serial,
-        &[
-            "shell",
-            "input",
-            "tap",
-            &x.to_string(),
-            &y.to_string(),
-        ],
+        &["shell", "input", "tap", &x.to_string(), &y.to_string()],
     )
 }
 

@@ -17,9 +17,7 @@ fn write_executable(path: &Path, content: &str) {
     fs::set_permissions(path, perms).expect("chmod");
 }
 
-fn stub_workspace_test(
-    name: &str,
-) -> (tempfile::TempDir, PathBuf, PathBuf, PathBuf, PathBuf) {
+fn stub_workspace_test(name: &str) -> (tempfile::TempDir, PathBuf, PathBuf, PathBuf, PathBuf) {
     let tmp = tempfile::tempdir().expect("tempdir");
     let bin_dir = tmp.path().join("bin");
     let config_root = tmp.path().join("config");
@@ -83,13 +81,7 @@ esac
         ),
     );
     let _ = name;
-    (
-        tmp,
-        bin_dir,
-        adb_log,
-        devices_output,
-        config_root,
-    )
+    (tmp, bin_dir, adb_log, devices_output, config_root)
 }
 
 fn write_test_config(config_root: &Path) {
@@ -117,11 +109,7 @@ max_history = 10
     .expect("write config");
 }
 
-fn run_hypr_phone(
-    args: &[&str],
-    bin_dir: &Path,
-    config_root: &Path,
-) -> std::process::Output {
+fn run_hypr_phone(args: &[&str], bin_dir: &Path, config_root: &Path) -> std::process::Output {
     let binary = env!("CARGO_BIN_EXE_hypr-phone");
     let current_path = std::env::var("PATH").unwrap_or_default();
     Command::new(binary)
@@ -171,7 +159,11 @@ fn clipboard_send_escapes_single_quotes_for_remote_shell() {
         &bin_dir,
         &config_root,
     );
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let calls = fs::read_to_string(&adb_log).expect("read adb log");
     assert!(calls.contains("cmd clipboard set-text 'can'\\''t break'"));
 }

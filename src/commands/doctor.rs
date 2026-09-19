@@ -103,7 +103,8 @@ fn build_report(config: &Config) -> DoctorReport {
                 name: "adb mDNS discovery".into(),
                 detail: "unavailable on this ADB version".into(),
                 hint: Some(
-                    "Update `android-tools` to ≥31 for mDNS-based wireless device discovery.".into(),
+                    "Update `android-tools` to ≥31 for mDNS-based wireless device discovery."
+                        .into(),
                 ),
             }),
         }
@@ -140,19 +141,36 @@ fn build_report(config: &Config) -> DoctorReport {
             entries.push(DoctorEntry {
                 level: if scrcpy_caps.start_app { "ok" } else { "warn" }.into(),
                 name: "scrcpy start-app".into(),
-                detail: if scrcpy_caps.start_app { "supported".into() } else { "not supported".into() },
+                detail: if scrcpy_caps.start_app {
+                    "supported".into()
+                } else {
+                    "not supported".into()
+                },
                 hint: None,
             });
             entries.push(DoctorEntry {
-                level: if scrcpy_caps.flex_display { "ok" } else { "info" }.into(),
+                level: if scrcpy_caps.flex_display {
+                    "ok"
+                } else {
+                    "info"
+                }
+                .into(),
                 name: "scrcpy flex-display".into(),
-                detail: if scrcpy_caps.flex_display { "supported".into() } else { "not supported".into() },
+                detail: if scrcpy_caps.flex_display {
+                    "supported".into()
+                } else {
+                    "not supported".into()
+                },
                 hint: None,
             });
             entries.push(DoctorEntry {
                 level: if scrcpy_caps.recording { "ok" } else { "warn" }.into(),
                 name: "scrcpy recording".into(),
-                detail: if scrcpy_caps.recording { "supported".into() } else { "not supported".into() },
+                detail: if scrcpy_caps.recording {
+                    "supported".into()
+                } else {
+                    "not supported".into()
+                },
                 hint: None,
             });
         }
@@ -276,9 +294,7 @@ fn build_report(config: &Config) -> DoctorReport {
             level: "warn".into(),
             name: "kdeconnect-cli".into(),
             detail: "not installed — KDE Connect features disabled".into(),
-            hint: Some(
-                "Install `kdeconnect` to enable battery, ring, and share features.".into(),
-            ),
+            hint: Some("Install `kdeconnect` to enable battery, ring, and share features.".into()),
         }),
     }
 
@@ -301,10 +317,7 @@ fn build_report(config: &Config) -> DoctorReport {
         detail: if config.devices.entries.is_empty() {
             "no paired aliases configured".into()
         } else {
-            format!(
-                "{} device(s) configured",
-                config.devices.entries.len()
-            )
+            format!("{} device(s) configured", config.devices.entries.len())
         },
         hint: if config.devices.entries.is_empty() {
             Some("Run `hypr-phone setup` or `hypr-phone device pair` to add a device.".into())

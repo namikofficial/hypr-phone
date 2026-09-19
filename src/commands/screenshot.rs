@@ -37,7 +37,7 @@ pub fn run(output: Option<String>) -> Result<()> {
         .arg("-a")
         .arg("hypr-phone")
         .arg("Screenshot saved")
-        .arg(&out_path.display().to_string())
+        .arg(out_path.display().to_string())
         .status();
     Ok(())
 }

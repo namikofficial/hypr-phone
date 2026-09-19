@@ -1,7 +1,6 @@
 //! `hypr-phone send` — intelligent file / URL / text routing.
 
 use std::{
-    fs,
     io::{self, Read},
     path::Path,
 };
@@ -67,10 +66,7 @@ fn send_file(serial: Option<&str>, path: &Path, config: &Config) -> Result<()> {
         if let Some(entry) = config.devices.entries.get(alias) {
             if let Some(kde_id) = &entry.kdeconnect_id {
                 if kdeconnect::kdeconnect_path().is_ok() {
-                    println!(
-                        "Routing through KDE Connect to `{}`.",
-                        kde_id
-                    );
+                    println!("Routing through KDE Connect to `{}`.", kde_id);
                     kdeconnect::send_file(kde_id, path)?;
                     return Ok(());
                 }
@@ -78,7 +74,10 @@ fn send_file(serial: Option<&str>, path: &Path, config: &Config) -> Result<()> {
         }
     }
     // Fallback to ADB push.
-    let remote = format!("/sdcard/Download/{}", path.file_name().and_then(|n| n.to_str()).unwrap_or("file"));
+    let remote = format!(
+        "/sdcard/Download/{}",
+        path.file_name().and_then(|n| n.to_str()).unwrap_or("file")
+    );
     let out = adb::ops::push_file(serial, &path.to_string_lossy(), &remote)?;
     println!("Pushed {} → {remote}", path.display());
     println!("{out}");
@@ -87,7 +86,10 @@ fn send_file(serial: Option<&str>, path: &Path, config: &Config) -> Result<()> {
 
 fn send_text(serial: Option<&str>, text: &str) -> Result<()> {
     let out = adb::ops::send_clipboard(serial, text)?;
-    println!("Sent {} characters to phone clipboard.", text.chars().count());
+    println!(
+        "Sent {} characters to phone clipboard.",
+        text.chars().count()
+    );
     if !out.is_empty() {
         println!("{out}");
     }

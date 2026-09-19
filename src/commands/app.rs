@@ -45,10 +45,8 @@ pub fn run(package: Option<String>) -> Result<()> {
             let backend = rofi::detect_backend().ok_or_else(|| {
                 anyhow::anyhow!("Provide an exact package name or install rofi/wofi.")
             })?;
-            let entries: Vec<(String, String)> = apps
-                .iter()
-                .map(|a| (a.clone(), a.clone()))
-                .collect();
+            let entries: Vec<(String, String)> =
+                apps.iter().map(|a| (a.clone(), a.clone())).collect();
             let Some(selected) = rofi::show_menu(backend, "Apps", &entries)? else {
                 return Ok(());
             };
@@ -67,10 +65,7 @@ pub fn run(package: Option<String>) -> Result<()> {
 }
 
 fn is_safe_package(p: &str) -> bool {
-    !p.is_empty()
-        && p.chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '.')
-        && p.contains('.')
+    !p.is_empty() && p.chars().all(|c| c.is_ascii_alphanumeric() || c == '.') && p.contains('.')
 }
 
 fn list_apps(serial: Option<&str>) -> Result<Vec<String>> {
@@ -96,11 +91,10 @@ pub fn launch_app(config: &Config, serial: &str, package: &str) -> Result<()> {
     let bin = scrcpy::scrcpy_path()?;
     let mut cmd = std::process::Command::new(&bin);
     cmd.args(&args);
-    let child = cmd.spawn().map_err(|e| anyhow::anyhow!("failed to launch scrcpy: {e}"))?;
-    println!(
-        "Launched `{package}` on `{serial}` (pid {}).",
-        child.id()
-    );
+    let child = cmd
+        .spawn()
+        .map_err(|e| anyhow::anyhow!("failed to launch scrcpy: {e}"))?;
+    println!("Launched `{package}` on `{serial}` (pid {}).", child.id());
     if let Err(e) = hyprland::place_window(&resolved.window_title, &resolved.placement) {
         eprintln!("[warn] hyprland placement failed: {e}");
     }

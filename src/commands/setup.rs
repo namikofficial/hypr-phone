@@ -21,7 +21,9 @@ pub fn run(apply: bool) -> Result<()> {
     if devices.is_empty() {
         println!("  No devices detected.");
         println!("  - Plug in a USB cable with USB debugging enabled, or");
-        println!("  - Run `hypr-phone device pair <ip:port> <code>` after pairing via Android settings.");
+        println!(
+            "  - Run `hypr-phone device pair <ip:port> <code>` after pairing via Android settings."
+        );
     } else {
         for d in &devices {
             println!(
@@ -108,12 +110,8 @@ pub fn run(apply: bool) -> Result<()> {
     println!();
     println!("    \"custom/phone\": {{");
     println!("        \"exec\": \"hypr-phone module\",");
-    println!(
-        "        \"on-click\": \"hypr-phone toggle\","
-    );
-    println!(
-        "        \"on-click-right\": \"hypr-phone menu\","
-    );
+    println!("        \"on-click\": \"hypr-phone toggle\",");
+    println!("        \"on-click-right\": \"hypr-phone menu\",");
     println!("        \"interval\": 5");
     println!("    }}");
     println!();

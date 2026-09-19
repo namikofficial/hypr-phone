@@ -9,7 +9,7 @@ use clap::{Parser, Subcommand, ValueEnum};
     about = "Hyprland-native Android presence layer",
     long_about = "hypr-phone turns your Android phone into a Hyprland-native device.\n\n\
                   Press Super+P to toggle the phone workspace, or run `hypr-phone menu` for\n\
-                  a contextual control surface.",
+                  a contextual control surface."
 )]
 pub struct Cli {
     /// Override the config file path.
@@ -22,10 +22,6 @@ pub struct Cli {
 
 #[derive(Debug, Clone, Subcommand)]
 pub enum Command {
-    /// Run the default flow (no args = contextual menu).
-    #[command(external_subcommand)]
-    External(Vec<String>),
-
     /// Open the contextual launcher menu (default).
     Menu,
 
@@ -319,17 +315,11 @@ pub enum CompatCommand {
         pairing_code: String,
     },
     /// Legacy `connect`.
-    Connect {
-        endpoint: Option<String>,
-    },
+    Connect { endpoint: Option<String> },
     /// Legacy `reconnect`.
-    Reconnect {
-        target: Option<String>,
-    },
+    Reconnect { target: Option<String> },
     /// Legacy `disconnect`.
-    Disconnect {
-        serial: String,
-    },
+    Disconnect { serial: String },
 }
 
 #[derive(Debug, Clone, Subcommand)]

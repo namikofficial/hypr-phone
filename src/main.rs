@@ -21,15 +21,16 @@ fn run_command(cmd: Option<Command>) -> Result<()> {
     let cmd = cmd.unwrap_or(Command::Menu);
 
     match cmd {
-        Command::External(args) => handle_external(&args),
         Command::Menu => commands::menu::run(),
-        Command::Toggle { profile, app, no_mirror } => {
-            commands::toggle::run(commands::toggle::ToggleOptions {
-                profile,
-                app,
-                no_mirror,
-            })
-        }
+        Command::Toggle {
+            profile,
+            app,
+            no_mirror,
+        } => commands::toggle::run(commands::toggle::ToggleOptions {
+            profile,
+            app,
+            no_mirror,
+        }),
         Command::Status { json, waybar } => commands::status::run(json, waybar),
         Command::App { package } => commands::app::run(package),
         Command::Send { thing } => commands::send::run(thing),
@@ -47,10 +48,6 @@ fn run_command(cmd: Option<Command>) -> Result<()> {
         }
         Command::Compat(c) => run_compat(c),
     }
-}
-
-fn handle_external(_args: &[String]) -> Result<()> {
-    commands::menu::run()
 }
 
 fn run_compat(cmd: CompatCommand) -> Result<()> {
@@ -78,22 +75,36 @@ fn run_compat(cmd: CompatCommand) -> Result<()> {
             let _ = services::hyprland::place_window(&resolved.window_title, &resolved.placement);
             Ok(())
         }
-        CompatCommand::Screenshot { target, output } => commands::screenshot::run_compat(target, output),
-        CompatCommand::Push { local_path, remote_path, target } => {
+        CompatCommand::Screenshot { target, output } => {
+            commands::screenshot::run_compat(target, output)
+        }
+        CompatCommand::Push {
+            local_path,
+            remote_path,
+            target,
+        } => {
             let config = hypr_phone::config::Config::load_default()?;
             let serial = config.resolve_target_serial(target.as_deref());
             let out = services::adb::ops::push_file(serial.as_deref(), &local_path, &remote_path)?;
             println!("{out}");
             Ok(())
         }
-        CompatCommand::Pull { remote_path, local_path, target } => {
+        CompatCommand::Pull {
+            remote_path,
+            local_path,
+            target,
+        } => {
             let config = hypr_phone::config::Config::load_default()?;
             let serial = config.resolve_target_serial(target.as_deref());
             let out = services::adb::ops::pull_file(serial.as_deref(), &remote_path, &local_path)?;
             println!("{out}");
             Ok(())
         }
-        CompatCommand::InstallApk { apk_path, target, reinstall } => {
+        CompatCommand::InstallApk {
+            apk_path,
+            target,
+            reinstall,
+        } => {
             let config = hypr_phone::config::Config::load_default()?;
             let serial = config.resolve_target_serial(target.as_deref());
             let out = services::adb::ops::install_apk(serial.as_deref(), &apk_path, reinstall)?;
@@ -130,12 +141,13 @@ fn run_compat(cmd: CompatCommand) -> Result<()> {
         CompatCommand::Devices { json } => {
             commands::device::run(hypr_phone::cli::DeviceAction::List { json })
         }
-        CompatCommand::Pair { endpoint, pairing_code } => {
-            commands::device::run(hypr_phone::cli::DeviceAction::Pair {
-                endpoint,
-                code: pairing_code,
-            })
-        }
+        CompatCommand::Pair {
+            endpoint,
+            pairing_code,
+        } => commands::device::run(hypr_phone::cli::DeviceAction::Pair {
+            endpoint,
+            code: pairing_code,
+        }),
         CompatCommand::Connect { endpoint } => {
             commands::device::run(hypr_phone::cli::DeviceAction::Connect { endpoint })
         }
@@ -181,7 +193,11 @@ fn run_compat_kde(action: CompatKdeAction) -> Result<()> {
         }
         CompatKdeAction::Battery { target } => {
             let info = services::kdeconnect::battery(target.as_deref())?;
-            println!("Battery: {}%{}", info.level_percent, if info.charging { " (charging)" } else { "" });
+            println!(
+                "Battery: {}%{}",
+                info.level_percent,
+                if info.charging { " (charging)" } else { "" }
+            );
             Ok(())
         }
         CompatKdeAction::Ring { target } => {
@@ -189,7 +205,11 @@ fn run_compat_kde(action: CompatKdeAction) -> Result<()> {
             println!("Ringing…");
             Ok(())
         }
-        CompatKdeAction::Notify { target, title, body } => {
+        CompatKdeAction::Notify {
+            target,
+            title,
+            body,
+        } => {
             services::kdeconnect::notify(target.as_deref(), &title, &body)?;
             println!("Notification sent.");
             Ok(())
