@@ -3,8 +3,105 @@
 //! Runtime-first placement via `hyprctl dispatch` rather than static
 //! `windowrulev2` config (which current Hyprland docs deprecate).
 
+use std::sync::OnceLock;
+
 use anyhow::{anyhow, bail, Context, Result};
 use serde::{Deserialize, Serialize};
+
+/// The Hyprland API style detected on this system.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HyprApiVersion {
+    /// Hyprland <= 0.54 style with legacy hyprctl dispatch syntax.
+    Legacy,
+    /// Hyprland >= 0.55 style with Lua/eval dispatch syntax.
+    Lua,
+}
+
+/// Cached version info for Hyprland on this system.
+#[derive(Debug, Clone)]
+pub struct HyprVersion {
+    pub version: String,
+    pub api: HyprApiVersion,
+    pub major: u32,
+    pub minor: u32,
+    pub patch: u32,
+}
+
+impl HyprVersion {
+    /// Parse version string like "Hyprland 0.55.0 built from git" or "0.54.2"
+    fn parse(raw: &str) -> Option<Self> {
+        let trimmed = raw.trim();
+        // Try "Hyprland X.Y.Z" format first.
+        let version_str = trimmed
+            .strip_prefix("Hyprland")
+            .and_then(|s| s.split_whitespace().next())
+            .or_else(|| trimmed.split_whitespace().next())
+            .filter(|v| v.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false))?;
+
+        let parts: Vec<&str> = version_str.split('.').collect();
+        if parts.len() < 2 {
+            return None;
+        }
+        let major: u32 = parts[0].parse().ok()?;
+        let minor: u32 = parts[1].parse().ok()?;
+        let patch: u32 = parts.get(2).and_then(|p| p.split(|c: char| !c.is_ascii_digit()).next()?.parse().ok()).unwrap_or(0);
+
+        let api = if major >= 1 || (major == 0 && minor >= 55) {
+            HyprApiVersion::Lua
+        } else {
+            HyprApiVersion::Legacy
+        };
+
+        Some(HyprVersion {
+            version: version_str.to_string(),
+            api,
+            major,
+            minor,
+            patch,
+        })
+    }
+}
+
+static CACHED_VERSION: OnceLock<HyprVersion> = OnceLock::new();
+
+/// Detect and cache the Hyprland version and API style.
+pub fn detect_version() -> Option<HyprVersion> {
+    let v = CACHED_VERSION.get_or_init(|| {
+        let output = std::process::Command::new("hyprctl")
+            .arg("version")
+            .output();
+        match output {
+            Ok(o) if o.status.success() => {
+                let stdout = String::from_utf8_lossy(&o.stdout);
+                HyprVersion::parse(&stdout).unwrap_or(HyprVersion {
+                    version: String::new(),
+                    api: HyprApiVersion::Legacy,
+                    major: 0,
+                    minor: 0,
+                    patch: 0,
+                })
+            }
+            _ => HyprVersion {
+                version: String::new(),
+                api: HyprApiVersion::Legacy,
+                major: 0,
+                minor: 0,
+                patch: 0,
+            },
+        }
+    });
+    // Return None if version string is empty (detection failed).
+    if v.version.is_empty() {
+        None
+    } else {
+        Some(v.clone())
+    }
+}
+
+/// Returns true if Hyprland is available and using the Lua API (>= 0.55).
+pub fn is_lua_api() -> bool {
+    detect_version().map(|v| v.api == HyprApiVersion::Lua).unwrap_or(false)
+}
 
 /// Window placement configuration. Stored under `[mirror.hyprland]` in
 /// user config and used by `toggle` to place the scrcpy window.
