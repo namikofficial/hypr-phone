@@ -1,10 +1,8 @@
-pub mod adb;
+//! hypr-phone: Hyprland-native Android presence layer.
+
 pub mod cli;
+pub mod commands;
 pub mod config;
-pub mod errors;
-pub mod gui;
-pub mod hyprland;
-pub mod kdeconnect;
-pub mod menu;
-pub mod module_output;
-pub mod scrcpy;
+pub mod domain;
+pub mod services;
+pub mod ui;
